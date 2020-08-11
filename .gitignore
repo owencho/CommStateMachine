@@ -1,0 +1,5 @@
+build/*
+!build/Readme.txt
+Debug/*
+LinkedList/build/*
+!LinkedList/build/Readme.txt
