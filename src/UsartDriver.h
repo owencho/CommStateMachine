@@ -13,6 +13,11 @@ struct UsartDriverInfo {
     int rxHandlerState;
 };
 
+typedef enum{
+    WAIT_FOR_LENGTH,
+    WAIT_FOR_PACKET,
+} rxHandlerState;
+
 void usartInit(UsartPort port,...);
 void usartTransmit(UsartPort port, char * txData,UsartEvent * event);
 void usartReceive(UsartPort port, char * txData,UsartEvent * event);
