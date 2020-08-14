@@ -1,10 +1,11 @@
-#include "UsartEvent.h"
-#include "UsartQueue.h"
+#include "Event.h"
+#include "EventQueue.h"
 #include "List.h"
 #include "ListItem.h"
+#include "Hardware.h"
 #include "Irq.h"
 
-void usartEventEnqueue(UsartQueue * queue,UsartEvent * event){
+void eventEnqueue(EventQueue * queue,Event * event){
 	  disableIRQ();
 		if(queue == NULL || event == NULL){
 				enableIRQ();
@@ -14,7 +15,7 @@ void usartEventEnqueue(UsartQueue * queue,UsartEvent * event){
     enableIRQ();
 }
 
-int usartEventDequeue(UsartQueue * queue,UsartEvent ** event){
+int eventDequeue(EventQueue * queue,Event ** event){
 	  disableIRQ();
     if(queue == NULL || event == NULL || queue->count ==0){
     	  enableIRQ();

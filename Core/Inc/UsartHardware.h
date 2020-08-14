@@ -4,6 +4,9 @@
 #include "Usart.h"
 //This is user define configuration
 #define USART_ADDRESS 0x1234
+#define PACKET_HEADER_SIZE 2
+#define PACKET_ADDRESS_OFFSET 0
+#define LENGTH_ADDRESS_OFFSET 1
 
 typedef enum{
     LED_CONTROLLER,
@@ -24,7 +27,7 @@ struct UsartInfo {
 };
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
-
+void usartHardwareInit();
 void hardwareUsartTransmit(UsartPort port,char * txData);
 void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length);
 
