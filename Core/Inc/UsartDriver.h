@@ -11,6 +11,7 @@ struct UsartDriverInfo {
     char * activeRxBuffer;
     char * spareRxBuffer;
     int rxHandlerState;
+    int isReceiveEvent;
 };
 
 typedef enum{
@@ -18,14 +19,15 @@ typedef enum{
     WAIT_FOR_PACKET,
 } rxHandlerState;
 
-void usartInit(UsartPort port,...);
-void usartTransmit(UsartPort port, char * txData,UsartEvent * event);
-void usartReceive(UsartPort port, char * txData,UsartEvent * event);
+void usartInit(UsartPort port);
+//need to add more config inside
+void usartDriverTransmit(UsartPort port, char * txData,UsartEvent * event);
+void usartDriverReceive(UsartPort port, char * txData,UsartEvent * event);
 // the data store is retrieved in the UsartEvent
 
 void usartRemoveReceivefromQueue(UsartPort port , UsartEvent * event);
 void usartRemoveReceiveTimer(UsartPort port , TimerEvent * event);
 
-void __usartRxHandler();
-void __usartTxHandler();
+void __usartRxCompletionHandler(UsartPort port);
+void __usartTxCompletionHandler(UsartPort port);
 #endif // USARTDRIVER_H

@@ -1,6 +1,9 @@
 #ifndef USARTHARDWARE_H
 #define USARTHARDWARE_H
 #include "StateMachine.h"
+#include "Usart.h"
+//This is user define configuration
+#define USART_ADDRESS 0x1234
 
 typedef enum{
     LED_CONTROLLER,
@@ -9,7 +12,7 @@ typedef enum{
 
 typedef struct UsartInfo UsartInfo;
 struct UsartInfo {
-    UsartReg * usart;
+    UsartRegs * usart;
     //FuncPtr apbclk
     Callback txCompleteCallBack;
     Callback rxCompleteCallBack;
@@ -20,7 +23,7 @@ struct UsartInfo {
     char  rxlen;
 };
 
-#define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo)) 
+#define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
 
 void hardwareUsartTransmit(UsartPort port,char * txData);
 void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length);
