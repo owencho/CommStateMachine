@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "CommStateMachine.h"
+
 UsartDriverInfo usartDriverInfo[] = {
   [LED_CONTROLLER]={NULL},
   [MAIN_CONTROLLER]={NULL},
@@ -46,15 +46,15 @@ STATIC int isCorrectAddress(UsartDriverInfo *info){
 }
 
 void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
-               WordLength length,StopBit sBitMode){
+               WordLength length,StopBit sBitMode,EnableDisable halfDuplex){
 
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
     char * packet = info->activeRxBuffer;
     memset(&usartDriverInfo[1],0,sizeof(UsartDriverInfo));
-    info[0].activeRxBuffer = malloc(sizeof(char));
-    info[1].activeRxBuffer = malloc(sizeof(char));
-    usartHardwareInit(port,overSampMode,parityMode,length,sBitMode);
+    info[0].activeRxBuffer = malloc(sizeof(char)*64);
+    info[1].activeRxBuffer = malloc(sizeof(char)*64);
+    usartHardwareInit(port,overSampMode,parityMode,length,sBitMode,halfDuplex);
     hardwareUsartReceive(port,packet,PACKET_HEADER_SIZE);
     enableIRQ();
 }

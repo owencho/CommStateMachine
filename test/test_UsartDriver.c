@@ -14,7 +14,8 @@
 #include <string.h>
 #include "SM_Common.h"
 #include "FakeIRQ.h"
-
+#include "CommStateMachine.h"
+#include "Common.h"
 extern EventQueue * evtQueue;
 extern UsartDriverInfo usartDriverInfo[];
 UsartEvent * txEvent;
@@ -30,9 +31,9 @@ void tearDown(void){
 void test_UsartDriver_usartInit(void){
     disableIRQ_StubWithCallback(fake_disableIRQ);
     enableIRQ_StubWithCallback(fake_enableIRQ);
-    usartHardwareInit_Expect(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2);
+    usartHardwareInit_Expect(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
     hardwareUsartReceive_Expect(LED_CONTROLLER,usartDriverInfo[LED_CONTROLLER].activeRxBuffer,PACKET_HEADER_SIZE);
-    usartInit(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2);
+    usartInit(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
 
     fakeCheckIRQ(__LINE__);
 }
@@ -140,7 +141,7 @@ void test_usartRxCompletionHandler_wrong_address(void){
     disableIRQ_StubWithCallback(fake_disableIRQ);
     enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * info =&usartDriverInfo[LED_CONTROLLER];
-    info->activeRxBuffer = "51"; // 5 is the address 
+    info->activeRxBuffer = "51"; // 5 is the address
     info->requestRxPacket = 1; //data is requested to receive
     info->rxUsartEvent = &rxEvent; //there is event
     info->state = WAIT_FOR_PACKET_PAYLOAD;
