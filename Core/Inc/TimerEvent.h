@@ -14,7 +14,9 @@
 typedef struct TimerEvent TimerEvent;
 struct TimerEvent {
 		TimerEvent * next;
+		int time;
 		void * data;
 };
+
 
 #endif /* INC_TIMEREVENT_H_ */

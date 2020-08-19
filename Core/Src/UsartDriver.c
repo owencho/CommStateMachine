@@ -7,19 +7,22 @@
 #include "UsartEvent.h"
 #include "TimerEventQueue.h"
 #include <stdlib.h>
-
+#include <stdio.h>
+#include <string.h>
+#include "CommStateMachine.h"
 UsartDriverInfo usartDriverInfo[] = {
   [LED_CONTROLLER]={NULL},
   [MAIN_CONTROLLER]={NULL},
 };
 
 extern EventQueue * evtQueue;
+
 #define peepRxPacket(info) ((info)->activeRxBuffer)
 #define hasRequestedTxPacket(info) ((info)->requestTxPacket)
 #define hasRequestedRxPacket(info) ((info)->requestRxPacket)
 #define getPacketPayloadAddress(packet) (packet + PACKET_HEADER_SIZE)
 
-char * getRxPacket(UsartDriverInfo *info){
+STATIC char * getRxPacket(UsartDriverInfo *info){
     char * packet = info->activeRxBuffer;
     if(hasRequestedRxPacket(info)){
         info->activeRxBuffer = info->spareRxBuffer;
@@ -27,28 +30,31 @@ char * getRxPacket(UsartDriverInfo *info){
     }
     return packet;
 }
-int getPacketLength(char * txData){
-    char usartAddress = *(txData + LENGTH_ADDRESS_OFFSET);
-    return usartAddress;
+STATIC int getPacketLength(char * txData){
+    char packetLength = *(txData + LENGTH_ADDRESS_OFFSET);
+    return packetLength;
 }
 
-int isCorrectAddress(UsartDriverInfo *info){
+STATIC int isCorrectAddress(UsartDriverInfo *info){
     char * packet = info->activeRxBuffer;
     char usartAddress = *(packet + PACKET_ADDRESS_OFFSET);
 
-    if(usartAddress == USART_ADDRESS)
+    if((int)usartAddress == USART_ADDRESS)
         return 1;
     else
         return 0;
 }
 
-void usartInit(UsartPort port){
-
-    //char * packet = info->activeRxBuffer;
+void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
+               WordLength length,StopBit sBitMode){
 
     disableIRQ();
-    usartHardwareInit();
-    //usartDriverInfo = (UsartDriverInfo *)calloc(port+1,sizeof(UsartDriverInfo));
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    char * packet = info->activeRxBuffer;
+    memset(&usartDriverInfo[1],0,sizeof(UsartDriverInfo));
+    info[0].activeRxBuffer = malloc(sizeof(char));
+    info[1].activeRxBuffer = malloc(sizeof(char));
+    usartHardwareInit(port,overSampMode,parityMode,length,sBitMode);
     hardwareUsartReceive(port,packet,PACKET_HEADER_SIZE);
     enableIRQ();
 }
@@ -70,6 +76,7 @@ void usartDriverReceive(UsartPort port, char * rxBuffer,UsartEvent * event){
     UsartDriverInfo * info =&usartDriverInfo[port];
 
     if(!hasRequestedRxPacket(info)){
+        info->txUsartEvent = event;
         info->spareRxBuffer = rxBuffer;
         info->requestRxPacket = 1;
     }
@@ -81,7 +88,8 @@ void usartTxCompletionHandler(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * event = info->txUsartEvent;
     eventEnqueue(evtQueue,(Event*)event);
-    usartDriverInfo[port].txUsartEvent = NULL;
+    info->txUsartEvent = NULL;
+    info->requestTxPacket = 0;
     enableIRQ();
 }
 
@@ -102,6 +110,7 @@ void usartRxCompletionHandler(UsartPort port){
         case WAIT_FOR_PACKET_PAYLOAD :
             if(hasRequestedRxPacket(info) && isCorrectAddress(info)){
                 event->buffer = getRxPacket(info);
+                info->requestRxPacket = 0;
                 eventEnqueue(evtQueue,(Event*)event);
             }
             packet = peepRxPacket(info);

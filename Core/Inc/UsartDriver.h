@@ -23,9 +23,11 @@ struct UsartDriverInfo {
     int requestRxPacket;
 };
 
+STATIC char * getRxPacket(UsartDriverInfo *info);
+STATIC int getPacketLength(char * txData);
+STATIC int isCorrectAddress(UsartDriverInfo *info);
 
-
-void usartInit(UsartPort port);
+void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,WordLength length,StopBit sBitMode);
 //need to add more config inside
 void usartDriverTransmit(UsartPort port, char * txData,UsartEvent * event);
 void usartDriverReceive(UsartPort port, char * txData,UsartEvent * event);
