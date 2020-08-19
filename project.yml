@@ -13,6 +13,7 @@
 #  :release_build: TRUE
   :test_file_prefix: test_
   :which_ceedling: gem
+  :ceedling_version: 0.30.0
   :default_tasks:
     - test:all
 
@@ -26,7 +27,7 @@
 :environment:
 
 :extension:
-  :executable: .exe
+  :executable: .out
 
 :paths:
   :test:
@@ -39,6 +40,7 @@
     - STM32F429_hardware/src/**
   :support:
     - test/support
+  :libraries: []
 
 :defines:
   # in order to add common defines:
@@ -71,11 +73,11 @@
 # You will need to have gcov and gcovr both installed to make it work.
 # For more information on these options, see docs in plugins/gcov
 :gcov:
-    :html_report: TRUE
-    :html_report_type: detailed
+  :reports:
+    - HtmlDetailed
+  :gcovr:
     :html_medium_threshold: 75
     :html_high_threshold: 90
-    :xml_report: FALSE
 
 #:tools:
 # Ceedling defaults to using gcc for compiling, linking, etc.
@@ -88,7 +90,9 @@
 # tests or releases. These options are MERGED with the options in supplemental yaml files.
 :libraries:
   :placement: :end
-  :flag: "${1}"  # or "-L ${1}" for example
+  :flag: "-l${1}"
+  :path_flag: "-L ${1}"
+  :system: [m]    # for example, you might list 'm' to grab the math library
   :test: []
   :release: []
 
