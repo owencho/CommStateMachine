@@ -31,7 +31,7 @@ struct UsartInfo {
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
 STATIC int findPacketLength(char* data);
-void initUsartHardwareReg(UsartPort port ,UsartRegs * usart);
+STATIC void initUsartHardwareReg(UsartPort port ,UsartRegs * usart);
 void usartHardwareInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
                        WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
 void hardwareUsartTransmit(UsartPort port,char * txData);

@@ -17,7 +17,7 @@ UsartInfo usartInfo[] = {
 STATIC int findPacketLength(char* data){
     return (sizeof(data)/sizeof(char));
 }
-void initUsartHardwareReg(UsartPort port ,UsartRegs * usart){
+STATIC void initUsartHardwareReg(UsartPort port ,UsartRegs * usart){
     UsartInfo * info = &usartInfo[port];
     info->usart = usart;
     //info->txBuffer = malloc(sizeof(char)*64);

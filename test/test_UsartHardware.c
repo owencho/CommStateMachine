@@ -21,13 +21,9 @@
 #include "CommStateMachine.h"
 #include "Common.h"
 #include "mock_Usart.h"
-void setUp(void)
-{
-}
+void setUp(void){}
 
-void tearDown(void)
-{
-}
+void tearDown(void){}
 
 void test_UsartHardware_NeedToImplement(void)
 {
