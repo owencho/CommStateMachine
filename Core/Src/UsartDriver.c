@@ -46,18 +46,19 @@ STATIC int isCorrectAddress(UsartDriverInfo *info){
         return 0;
 }
 
-void usartInit(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
+void usartInit(){
+    memset(&usartDriverInfo[1],0,sizeof(UsartDriverInfo));
+    usartHardwareInit();
+}
+void usartConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                WordLength length,StopBit sBitMode,EnableDisable halfDuplex){
 
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
+    info->activeRxBuffer = malloc(sizeof(char)*64);
     char * packet = info->activeRxBuffer;
-    memset(&usartDriverInfo[1],0,sizeof(UsartDriverInfo));
-    info[0].activeRxBuffer = malloc(sizeof(char)*64);
-    info[1].activeRxBuffer = malloc(sizeof(char)*64);
-    info[0].state = WAIT_FOR_PACKET_HEADER;
-    info[1].state = WAIT_FOR_PACKET_HEADER;
-    usartHardwareInit(port,baudRate,overSampMode,parityMode,length,sBitMode,halfDuplex);
+    info->state = WAIT_FOR_PACKET_HEADER;
+    usartHardwareConfig(port,baudRate,overSampMode,parityMode,length,sBitMode,halfDuplex);
     hardwareUsartReceive(port,packet,PACKET_HEADER_SIZE);
     enableIRQ();
 }
@@ -79,7 +80,7 @@ void usartDriverReceive(UsartPort port, char * rxBuffer,UsartEvent * event){
     UsartDriverInfo * info =&usartDriverInfo[port];
 
     if(!hasRequestedRxPacket(info)){
-        info->txUsartEvent = event;
+        info->rxUsartEvent = event;
         info->spareRxBuffer = rxBuffer;
         info->requestRxPacket = 1;
     }

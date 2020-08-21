@@ -19,7 +19,6 @@ typedef void (*UsartCallback)(UsartPort port);
 typedef struct UsartInfo UsartInfo;
 struct UsartInfo {
     UsartRegs * usart;
-    //FuncPtr apbclk
     UsartCallback txCompleteCallBack;
     UsartCallback rxCompleteCallBack;
     UsartCallback errorCallBack;
@@ -33,7 +32,8 @@ struct UsartInfo {
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
 STATIC int findPacketLength(char* data);
 STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart);
-void usartHardwareInit(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
+void usartHardwareInit();
+void usartHardwareConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                        WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
 void hardwareUsartTransmit(UsartPort port,char * txData);
 void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length);
@@ -42,6 +42,7 @@ void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length);
 void hardwareUsartSetTxCompleteCallback(UsartPort port,UsartCallback callback);
 void hardwareUsartSetRxCompleteCallback(UsartPort port,UsartCallback callback);
 void hardwareUsartSetErrorCallback(UsartPort port,UsartCallback callback);
+void configureGpio();
 
 
 #endif // USARTHARDWARE_H

@@ -28,6 +28,7 @@
 #include "Irq.h"
 #include "UsartEvent.h"
 #include "TimerEventQueue.h"
+#include <stdlib.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -89,13 +90,15 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  usartInit(LED_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
-  usartInit(MAIN_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
+  usartInit();
+  usartConfig(LED_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
+  usartConfig(MAIN_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   /* USER CODE BEGIN 2 */
-  usartDriverReceive(MAIN_CONTROLLER,txData,&evt2);
+  rxData = malloc(sizeof(char)*64);
+  usartDriverReceive(MAIN_CONTROLLER,rxData,&evt2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -103,7 +106,8 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  usartDriverTransmit(LED_CONTROLLER,rxData,&evt);
+	  usartDriverReceive(MAIN_CONTROLLER,rxData,&evt2);
+	  usartDriverTransmit(LED_CONTROLLER,txData,&evt);
 
     /* USER CODE BEGIN 3 */
   }
