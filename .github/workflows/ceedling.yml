@@ -21,9 +21,9 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby}}
       - name: Checkout submodules
-        uses: srt32/git-actions@v0.0.3
-        with:
-          args: git submodule update --init --recursive
+        shell: bash
+        run: |
+            git submodule update --init --recursive
       - name: install ceedling
         run: |
           gem install ceedling
