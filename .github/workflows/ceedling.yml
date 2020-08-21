@@ -20,6 +20,8 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby}}
+      - name: Checkout submodules
+        uses: textbook/git-checkout-submodule-action@2.1.1
       - name: install ceedling
         run: |
           gem install ceedling
