@@ -23,6 +23,7 @@ struct UsartInfo {
     UsartCallback txCompleteCallBack;
     UsartCallback rxCompleteCallBack;
     UsartCallback errorCallBack;
+    int txTurn;
     char * txBuffer;
     char  txlen;
     char * rxBuffer;
@@ -31,8 +32,8 @@ struct UsartInfo {
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
 STATIC int findPacketLength(char* data);
-STATIC void initUsartHardwareReg(UsartPort port ,UsartRegs * usart);
-void usartHardwareInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
+STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart);
+void usartHardwareInit(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                        WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
 void hardwareUsartTransmit(UsartPort port,char * txData);
 void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length);

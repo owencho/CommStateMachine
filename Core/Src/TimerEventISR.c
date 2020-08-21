@@ -15,7 +15,7 @@ TimerEvent * currentTimerEventItem;
 extern int isEvent ;
 int totalTimeDelay,relativeTick;
 
-void timerEventISR(TcbQueue * readyQueue,TimerEventQueue *timerEventQueue){
+void timerEventISR(EventQueue * readyQueue,TimerEventQueue *timerEventQueue){
 		TimerEvent * currentTimerEventItem;
 		disableIRQ();
  		if(timerEventQueueGetCount(timerEventQueue) !=0){
@@ -34,7 +34,7 @@ void timerEventISR(TcbQueue * readyQueue,TimerEventQueue *timerEventQueue){
 	 enableIRQ();
 }
 
-void checkAndDequeueIfNextEventTimerIsZero(TcbQueue * readyQueue,TimerEventQueue *timerEventQueue){
+void checkAndDequeueIfNextEventTimerIsZero(EventQueue * readyQueue,TimerEventQueue *timerEventQueue){
 		TimerEvent * nextTimerEventItem;
 		resetCurrentTimerEventQueue(timerEventQueue);
 		nextTimerEventItem=(TimerEvent*)getCurrentListItem((List*)timerEventQueue);

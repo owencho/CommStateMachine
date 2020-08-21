@@ -21,6 +21,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "EventQueue.h"
+#include "UsartDriver.h"
+#include "UsartHardware.h"
+#include "Event.h"
+#include "List.h"
+#include "Irq.h"
+#include "UsartEvent.h"
+#include "TimerEventQueue.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -43,7 +50,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+UsartEvent evt ,evt2;
+char * rxData;
+char txData[] = {0x34,0x2,0x1,0x1};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -80,12 +89,13 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  usartInit(LED_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
+  usartInit(MAIN_CONTROLLER,115200,OVER_16,ODD_PARITY,DATA_8_BITS,STOP_BIT_2,DISABLE_MODE);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   /* USER CODE BEGIN 2 */
-
+  usartDriverReceive(MAIN_CONTROLLER,txData,&evt2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -93,6 +103,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  usartDriverTransmit(LED_CONTROLLER,rxData,&evt);
 
     /* USER CODE BEGIN 3 */
   }

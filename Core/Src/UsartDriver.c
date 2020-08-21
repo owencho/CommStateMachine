@@ -2,6 +2,7 @@
 #include "UsartHardware.h"
 #include "EventQueue.h"
 #include "Event.h"
+#include "Gpio.h"
 #include "List.h"
 #include "Irq.h"
 #include "UsartEvent.h"
@@ -15,7 +16,7 @@ UsartDriverInfo usartDriverInfo[] = {
   [MAIN_CONTROLLER]={NULL},
 };
 
-extern EventQueue * evtQueue;
+extern EventQueue evtQueue;
 
 #define peepRxPacket(info) ((info)->activeRxBuffer)
 #define hasRequestedTxPacket(info) ((info)->requestTxPacket)
@@ -31,7 +32,7 @@ STATIC char * getRxPacket(UsartDriverInfo *info){
     return packet;
 }
 STATIC int getPacketLength(char * txData){
-    char packetLength = *(txData + LENGTH_ADDRESS_OFFSET);
+    int packetLength = txData[LENGTH_ADDRESS_OFFSET];
     return packetLength;
 }
 
@@ -45,7 +46,7 @@ STATIC int isCorrectAddress(UsartDriverInfo *info){
         return 0;
 }
 
-void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
+void usartInit(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                WordLength length,StopBit sBitMode,EnableDisable halfDuplex){
 
     disableIRQ();
@@ -54,7 +55,9 @@ void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
     memset(&usartDriverInfo[1],0,sizeof(UsartDriverInfo));
     info[0].activeRxBuffer = malloc(sizeof(char)*64);
     info[1].activeRxBuffer = malloc(sizeof(char)*64);
-    usartHardwareInit(port,overSampMode,parityMode,length,sBitMode,halfDuplex);
+    info[0].state = WAIT_FOR_PACKET_HEADER;
+    info[1].state = WAIT_FOR_PACKET_HEADER;
+    usartHardwareInit(port,baudRate,overSampMode,parityMode,length,sBitMode,halfDuplex);
     hardwareUsartReceive(port,packet,PACKET_HEADER_SIZE);
     enableIRQ();
 }
@@ -87,7 +90,7 @@ void usartTxCompletionHandler(UsartPort port){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * event = info->txUsartEvent;
-    eventEnqueue(evtQueue,(Event*)event);
+    eventEnqueue(&evtQueue,(Event*)event);
     info->txUsartEvent = NULL;
     info->requestTxPacket = 0;
     enableIRQ();
@@ -109,9 +112,10 @@ void usartRxCompletionHandler(UsartPort port){
 
         case WAIT_FOR_PACKET_PAYLOAD :
             if(hasRequestedRxPacket(info) && isCorrectAddress(info)){
+            	gpioToggleBit(gpioG,PIN_13);
                 event->buffer = getRxPacket(info);
                 info->requestRxPacket = 0;
-                eventEnqueue(evtQueue,(Event*)event);
+                eventEnqueue(&evtQueue,(Event*)event);
             }
             packet = peepRxPacket(info);
             hardwareUsartReceive(port,packet,PACKET_HEADER_SIZE);

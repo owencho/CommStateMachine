@@ -9,7 +9,6 @@
 typedef enum{
     WAIT_FOR_PACKET_HEADER,
     WAIT_FOR_PACKET_PAYLOAD,
-    COMPLETE_RECEIVE
 } RxHandlerState;
 
 typedef struct UsartDriverInfo UsartDriverInfo;
@@ -27,7 +26,7 @@ STATIC char * getRxPacket(UsartDriverInfo *info);
 STATIC int getPacketLength(char * txData);
 STATIC int isCorrectAddress(UsartDriverInfo *info);
 
-void usartInit(UsartPort port,OversampMode overSampMode,ParityMode parityMode,
+void usartInit(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
 //need to add more config inside
 void usartDriverTransmit(UsartPort port, char * txData,UsartEvent * event);
