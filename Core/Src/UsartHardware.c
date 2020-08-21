@@ -3,6 +3,8 @@
 #include "Event.h"
 #include "List.h"
 #include "Gpio.h"
+#include "Rcc.h"
+#include "Nvic.h"
 #include "Irq.h"
 #include "UsartEvent.h"
 #include "UsartDriver.h"
@@ -139,4 +141,3 @@ void configureGpio(){
 	  enableUART5();
 
 }
-

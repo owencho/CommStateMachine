@@ -2,6 +2,8 @@
 #include "UsartDriver.h"
 #include "mock_UsartHardware.h"
 #include "mock_Irq.h"
+#include "mock_Gpio.h"
+#include "mock_Rcc.h"
 #include "mock_EventQueue.h"
 #include "Event.h"
 #include "EventCompare.h"
@@ -16,7 +18,7 @@
 #include "FakeIRQ.h"
 #include "CommStateMachine.h"
 #include "Common.h"
-extern EventQueue * evtQueue;
+extern EventQueue evtQueue;
 extern UsartDriverInfo usartDriverInfo[];
 UsartEvent * txEvent;
 UsartEvent rxEvent;
@@ -28,16 +30,20 @@ void tearDown(void){
 
 }
 
-void test_UsartDriver_usartInit(void){
+void fake_emptyFunction(){
+  
+}
+/*
+void test_UsartDriver_usartConfig(void){
     disableIRQ_StubWithCallback(fake_disableIRQ);
     enableIRQ_StubWithCallback(fake_enableIRQ);
-    usartHardwareInit_Expect(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
+    usartHardwareConfig_Expect(LED_CONTROLLER,115200,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
     hardwareUsartReceive_Expect(LED_CONTROLLER,usartDriverInfo[LED_CONTROLLER].activeRxBuffer,PACKET_HEADER_SIZE);
-    usartInit(LED_CONTROLLER,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
+    usartConfig(LED_CONTROLLER,115200,OVER_8,EVEN_PARITY,DATA_8_BITS,STOP_BIT_2,ENABLE_MODE);
 
     fakeCheckIRQ(__LINE__);
 }
-
+*/
 void test_UsartDriver_getRxPacket(void){
     UsartDriverInfo * info =&usartDriverInfo[LED_CONTROLLER];
     info->activeRxBuffer = "abc";
@@ -93,10 +99,10 @@ void test_usartDriverReceive(void){
     TEST_ASSERT_NULL(info->spareRxBuffer);
     usartDriverReceive(LED_CONTROLLER,rxPacket,&rxEvent);
     TEST_ASSERT_EQUAL(1,info->requestRxPacket);
-    TEST_ASSERT_EQUAL(&rxEvent,info->txUsartEvent);
+    TEST_ASSERT_EQUAL(&rxEvent,info->rxUsartEvent);
     // when rxPacket is transmitting the event wont change
     usartDriverReceive(LED_CONTROLLER,rxPacket,rxEvent2);
-    TEST_ASSERT_EQUAL(&rxEvent,info->txUsartEvent);
+    TEST_ASSERT_EQUAL(&rxEvent,info->rxUsartEvent);
     fakeCheckIRQ(__LINE__);
 }
 
@@ -108,7 +114,7 @@ void test_usartTxCompletionHandler(void){
     info->txUsartEvent = txEvent; //there is event
     TEST_ASSERT_EQUAL(1,info->requestRxPacket);
     TEST_ASSERT_EQUAL(txEvent,info->txUsartEvent);
-    eventEnqueue_Expect(evtQueue,(Event*)info->txUsartEvent);
+    eventEnqueue_Expect(&evtQueue,(Event*)info->txUsartEvent);
     usartTxCompletionHandler(LED_CONTROLLER);
 
     fakeCheckIRQ(__LINE__);
@@ -117,6 +123,7 @@ void test_usartTxCompletionHandler(void){
 void test_usartRxCompletionHandler_correct_address(void){
     disableIRQ_StubWithCallback(fake_disableIRQ);
     enableIRQ_StubWithCallback(fake_enableIRQ);
+    gpioToggleBit_StubWithCallback(fake_emptyFunction);
     UsartDriverInfo * info =&usartDriverInfo[LED_CONTROLLER];
     info->activeRxBuffer = "41";
     info->requestRxPacket = 1; //data is requested to receive
@@ -129,7 +136,7 @@ void test_usartRxCompletionHandler_correct_address(void){
     usartRxCompletionHandler(LED_CONTROLLER);
     // when Rx packet is requested
     TEST_ASSERT_EQUAL(WAIT_FOR_PACKET_PAYLOAD,info->state);
-    eventEnqueue_Expect(evtQueue,(Event*)info->rxUsartEvent);
+    eventEnqueue_Expect(&evtQueue,(Event*)info->rxUsartEvent);
     hardwareUsartReceive_Expect(LED_CONTROLLER,usartDriverInfo[LED_CONTROLLER].spareRxBuffer,PACKET_HEADER_SIZE);
     usartRxCompletionHandler(LED_CONTROLLER);
     //now request the usart receive again
