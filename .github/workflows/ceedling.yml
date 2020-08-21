@@ -1,0 +1,28 @@
+name: Ceedling test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest,windows-latest,macos-latest]
+        compiler: [gcc-latest]
+        ruby: [ 2.5, 2.6 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby}}
+      - name: install ceedling
+        run: |
+          gem install ceedling
+      - name: Testrun
+        run: |
+          ceedling test:all
