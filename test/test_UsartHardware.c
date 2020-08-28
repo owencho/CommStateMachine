@@ -22,6 +22,7 @@
 #include "SM_Common.h"
 #include "FakeIRQ.h"
 #include "CommStateMachine.h"
+#include "CommEventQueue.h"
 #include "Common.h"
 #include "mock_Usart.h"
 void setUp(void){}

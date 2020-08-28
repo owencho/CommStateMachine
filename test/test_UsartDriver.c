@@ -17,8 +17,8 @@
 #include "SM_Common.h"
 #include "FakeIRQ.h"
 #include "CommStateMachine.h"
+#include "CommEventQueue.h"
 #include "Common.h"
-extern EventQueue evtQueue;
 extern UsartDriverInfo usartDriverInfo[];
 UsartEvent * txEvent;
 UsartEvent rxEvent;
@@ -31,7 +31,7 @@ void tearDown(void){
 }
 
 void fake_emptyFunction(){
-  
+
 }
 /*
 void test_UsartDriver_usartConfig(void){
