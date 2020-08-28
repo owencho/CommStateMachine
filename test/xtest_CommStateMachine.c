@@ -1,5 +1,4 @@
 #include "unity.h"
-
 #include "CommStateMachine.h"
 
 void setUp(void)
