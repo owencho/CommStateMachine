@@ -23,8 +23,8 @@ STATIC int findPacketLength(char* data){
 STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart){
     UsartInfo * info = &usartInfo[port];
     info->usart = usart;
-    info->txBuffer = malloc(sizeof(char)*64);
-    info->rxBuffer = malloc(sizeof(char)*64);
+    hardwareInfo->handleRxByte =
+    hardwareInfo->handleTxByte =
     info->txlen = 0;
     info->rxlen = 0;
 }
@@ -54,47 +54,63 @@ void usartHardwareInit(){
     enableIRQ();
 }
 
-void hardwareUsartTransmit(UsartPort port,char * txData){
+void hardwareUsartSkipReceive(UsartPort port){
     disableIRQ();
     UsartInfo * info =&usartInfo[port];
-    info->txlen=findPacketLength(txData);
-    info->txBuffer = txData;
+    info->rxSkip = 1;
+    enableIRQ();
+}
+
+void hardwareUsartResetSkipReceive(UsartPort port){
+    disableIRQ();
+    UsartInfo * info =&usartInfo[port];
+    info->rxSkip = 0;
+    enableIRQ();
+}
+
+void hardwareUsartTransmit(UsartPort port){
+    disableIRQ();
+    UsartInfo * info =&usartInfo[port];
     info->txTurn = 1;
-    hardwareUsartSetTxCompleteCallback(port,(UsartCallback)usartTxCompletionHandler);
     usartEnableTransmission(info->usart);
     usartEnableInterrupt(info->usart,TRANS_COMPLETE);
     usartDisableReceiver(info->usart);
     enableIRQ();
 }
 
-void hardwareUsartReceive(UsartPort port,char * rxBuffer,int length){
+void hardwareUsartReceive(UsartPort port){
     disableIRQ();
     UsartInfo * info =&usartInfo[port];
-    info->rxlen=length;
-    info->rxBuffer = rxBuffer;
-    hardwareUsartSetRxCompleteCallback(port,(UsartCallback)usartRxCompletionHandler);
     usartEnableReceiver(info->usart);
     usartEnableInterrupt(info->usart,RXNE_INTERRUPT);
     enableIRQ();
 }
 
-void hardwareUsartSetTxCompleteCallback(UsartPort port,UsartCallback callback){
-    disableIRQ();
-    UsartInfo * hardwareInfo =&usartInfo[port];
-    hardwareInfo->txCompleteCallBack = callback;
-    enableIRQ();
+void usartIrqHandler(UsartPort port){
+    UsartInfo * info = &usartInfo[port];
+    UsartRegs * usart = info->usart;
+    int skipReceive = info->rxSkip;
+    char rxByte;
+    char txByte;
+
+    if(info->txTurn){
+        txByte = info->txCallBack(port);
+        usartSend(usart,txBuffer);
+    }
+    else{
+        rxByte = usartReceive(usart);
+        info->rxCallBack(port,rxByte);
+    }
 }
-void hardwareUsartSetRxCompleteCallback(UsartPort port,UsartCallback callback){
-    disableIRQ();
-    UsartInfo * hardwareInfo =&usartInfo[port];
-    hardwareInfo->rxCompleteCallBack = callback;
-    enableIRQ();
-}
-void hardwareUsartSetErrorCallback(UsartPort port,UsartCallback callback){
-    disableIRQ();
-    UsartInfo * hardwareInfo =&usartInfo[port];
-    hardwareInfo->errorCallBack = callback;
-    enableIRQ();
+
+void endOfUsartTxHandler(UsartPort port){
+    UsartInfo * info = &usartInfo[port];
+    UsartRegs * usart = info->usart;
+    usartDisableInterrupt(usart,TRANS_COMPLETE);
+    usartDisableTransmission(usart);
+    usartEnableReceiver(usart);
+    info->txCompleteCallBack(port);
+    info->txTurn = 0;
 }
 
 void configureGpio(){

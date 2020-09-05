@@ -86,7 +86,113 @@ void usartDriverReceive(UsartPort port, char * rxBuffer,UsartEvent * event){
     }
     enableIRQ();
 }
+char usartTransmissionHandler(UsartPort port){
+    disableIRQ();
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    char * packet = info->activeRxBuffer;
+    UsartEvent * event = info->txUsartEvent;
+    char returnTx;
 
+    switch(info->txState){
+        case TX_IDLE :
+            returnTx = 0x7E;
+            info->state = WAIT_FOR_PACKET_PAYLOAD;
+            break;
+
+        case TX_SEND_DELIMITER:
+
+            info->state = WAIT_FOR_PACKET_HEADER;
+            break;
+    }
+    enableIRQ();
+}
+
+void usartReceiveHandler(UsartPort port,char rxByte){
+    disableIRQ();
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    UsartEvent * evt = info->rxUsartEvent;
+    char * packet = info->activeRxBuffer;
+
+    switch(info->txState){
+        case RX_IDLE :
+            if(rxByte == 0x7E){
+                info->state = RX_START_DELIMITETER;
+                info->rxCounter = 0;
+            }
+            break;
+
+        case RX_START_DELIMITETER:
+            if(rxByte == 0x81){
+                info->state = RX_RECEIVE_ADDRESS;
+            }
+            else{
+                info->state = RX_IDLE;
+            }
+            break;
+        case RX_RECEIVE_ADDRESS:
+            packet[PACKET_ADDRESS_OFFSET] =rxByte;
+            info->state = RX_RECEIVE_LENGTH;
+            break;
+        case RX_RECEIVE_LENGTH:
+            packet[LENGTH_ADDRESS_OFFSET] =rxByte;
+            rxLen = rxByte;
+            if(isCorrectAddress(info)){
+                //eventEnqueue(&sysQueue,(Event*)mallocEvent);
+                info->state = RX_RECEIVE_PACKET;
+            }
+            else{
+                hardwareUsartSkipReceive(port);
+                info->state = RX_SKIP_PACKET;
+            }
+            break;
+        case RX_RECEIVE_PACKET:
+            if(rxByte == 0x7E){
+                info->state = RX_RECEIVED_DELIMETER_PACKET;
+            }
+            else if (info->rxCounter == (info->rxLen-1)){
+                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
+                //checkCRC
+                info->state = RX_IDLE;
+            }
+            else{
+                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
+                info->rxCounter ++;
+            }
+            break;
+        case RX_RECEIVED_DELIMETER_PACKET:
+            if(rxByte == 0xE7){
+                packet[info->rxCounter+PAYLOAD_OFFSET] =0x7E;
+                if(info->rxCounter == (info->rxLen-1)){
+                    //checkCRC
+                    info->state = RX_IDLE;
+                }
+                else{
+                    info->rxCounter ++;
+                    info->state = RX_RECEIVE_PACKET;
+                }
+            }
+            else if(rxByte == 0x81){
+                info->rxCounter = 0;
+                info->state = RX_RECEIVE_ADDRESS;
+            }
+            else{
+                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
+                info->rxCounter ++;
+                info->state = RX_RECEIVE_PACKET;
+            }
+            break;
+        case RX_SKIP_PACKET:
+            if (info->rxCounter == (info->rxLen-1)){
+                hardwareUsartResetSkipReceive(port);
+                info->rxCounter = 0;
+                info->rxLen = 0;
+                info->state = RX_IDLE;
+            }
+            break;
+    }
+    enableIRQ();
+}
+/*
 void usartTxCompletionHandler(UsartPort port){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
@@ -125,3 +231,4 @@ void usartRxCompletionHandler(UsartPort port){
     }
     enableIRQ();
 }
+*/

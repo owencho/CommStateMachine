@@ -205,68 +205,11 @@ void SysTick_Handler(void)
 
 /* USER CODE BEGIN 1 */
 void USART1_IRQHandler(void){
-	UsartInfo * info = &usartInfo[LED_CONTROLLER];
-	UsartRegs * usartLED = info->usart;
-	char * receiveBuffer = info->rxBuffer;
-	char * transmitBuffer = info->txBuffer;
-
-	if(info->txTurn){
-		   if(info->txlen != txCharCount){
-			   usartClearTcFlag(usartLED);
-			   usartSend(usartLED,transmitBuffer[txCharCount]);
-			   txCharCount ++;
-		   }else{
-			   usartDisableInterrupt(usartLED,TRANS_COMPLETE);
-			   usartDisableTransmission(usartLED);
-			   usartEnableReceiver(usartLED);
-			   info->txCompleteCallBack(LED_CONTROLLER);
-			   info->txTurn = 0;
-			   txCharCount = 0;
-		   }
-	}
-	else{
-		   if(info->rxlen != rxCharCount){
-			   receiveBuffer[rxCharCount] = usartReceive(usartLED);
-			   rxCharCount ++;
-		   }else{
-			   info->rxCompleteCallBack(LED_CONTROLLER);
-			   rxCharCount = 0;
-		   }
-	}
+    usartIrqHandler(LED_CONTROLLER);
 }
 
 void UART5_IRQHandler(void){
-	UsartInfo * info = &usartInfo[MAIN_CONTROLLER];
-	UsartRegs * usartLED = info->usart;
-	char * receiveBuffer = info->rxBuffer;
-	char * transmitBuffer = info->txBuffer;
-
-	if(info->txTurn){
-		   if(info->txlen != txCharCount2){
-			   usartClearTcFlag(usartLED);
-			   usartSend(usartLED,transmitBuffer[txCharCount2]);
-			   txCharCount2 ++;
-		   }else{
-			   usartDisableInterrupt(usartLED,TRANS_COMPLETE);
-			   usartDisableTransmission(usartLED);
-			   usartEnableReceiver(usartLED);
-			   info->txCompleteCallBack(MAIN_CONTROLLER);
-			   info->txTurn = 0;
-			   txCharCount = 0;
-		   }
-	}
-	else{
-		   if(info->rxlen != rxCharCount2){
-			   receiveBuffer[rxCharCount2] = usartReceive(usartLED);
-			   rxCharCount2 ++;
-		   }
-
-		   if(info->rxlen == rxCharCount2){
-			   info->rxCompleteCallBack(MAIN_CONTROLLER);
-			   rxCharCount2 = 0;
-		   }
-
-	}
+    usartIrqHandler(MAIN_CONTROLLER);
 }
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
