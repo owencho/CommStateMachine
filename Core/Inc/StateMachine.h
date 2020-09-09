@@ -10,6 +10,9 @@
 
 //#include "Event.h"
 typedef void (*Callback)(void * data);
+typedef void (*UsartCallback)(UsartPort port);
+typedef uint8_t (*TxCallback)(UsartPort port);
+typedef void (*RxCallback)(UsartPort port,uint8_t rxByte);
 
 typedef struct GenericStateMachine GenericStateMachine;
 // all state machines should have this generic data struct

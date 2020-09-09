@@ -6,12 +6,13 @@
 //This is user define configuration
 #define USART_ADDRESS 0x34
 #define PACKET_HEADER_SIZE 2
-#define PACKET_ADDRESS_OFFSET 0
-#define LENGTH_ADDRESS_OFFSET 1
-#define PAYLOAD_OFFSET 2
+#define RECEIVER_ADDRESS_OFFSET 0
+#define SENDER_ADDRESS_OFFSET 1
+#define LENGTH_OFFSET 2
+#define PAYLOAD_OFFSET 3
 
 
-#define RX_PACKET_START (17<<8)
+#define RX_PACKET_START 0x11
 
 typedef enum{
     LED_CONTROLLER,
@@ -32,9 +33,6 @@ typedef enum{
     HW_RX_RECEIVE_7E_BYTE,
 } UsartHardwareRxState;
 
-typedef void (*UsartCallback)(UsartPort port);
-typedef uint8_t (*TxCallback)(UsartPort port);
-typedef void (*RxCallback)(UsartPort port,uint8_t rxByte);
 typedef struct UsartInfo UsartInfo;
 struct UsartInfo {
     UsartRegs * usart;

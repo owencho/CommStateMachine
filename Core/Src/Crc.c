@@ -40,8 +40,7 @@ static const uint16_t crc16_ccitt_table_reverse[256] =
 };
 
 static uint16_t crc16_reflected(const uint8_t *buf, uint16_t len,
-                                uint16_t crc_in, const uint16_t table[])
-{
+                                uint16_t crc_in, const uint16_t table[]){
     uint16_t crc16 = (uint16_t)crc_in;
 
     while( len-- != 0 )
@@ -50,8 +49,7 @@ static uint16_t crc16_reflected(const uint8_t *buf, uint16_t len,
     return (uint16_t)crc16;
 }
 
-uint16_t crc16_ccitt(const uint8_t *buf, uint16_t len)
-{
+uint16_t generateCrc16(const uint8_t *buf, uint16_t len){
     return crc16_reflected(buf,len,crc16_ccitt_start,crc16_ccitt_table_reverse)
        ^ crc16_ccitt_xorout;
 }

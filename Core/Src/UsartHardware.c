@@ -19,9 +19,7 @@ UsartInfo usartInfo[] = {
   [LED_CONTROLLER]={NULL},
   [MAIN_CONTROLLER]={NULL},
 };
-STATIC int findPacketLength(char* data){
-    return (sizeof(data)/sizeof(char));
-}
+
 STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart){
     UsartInfo * info = &usartInfo[port];
     info->usart = usart;
@@ -71,6 +69,7 @@ void hardwareUsartTransmit(UsartPort port){
 void hardwareUsartReceive(UsartPort port){
     disableIRQ();
     UsartInfo * info =&usartInfo[port];
+    info->txTurn = 0;
     usartEnableReceiver(info->usart);
     usartEnableInterrupt(info->usart,RXNE_INTERRUPT);
     enableIRQ();
@@ -141,7 +140,7 @@ void usartReceiveHardwareHandler(UsartPort port,uint8_t rxByte){
             break;
         case HW_RX_RECEIVED_DELIMITER :
             if(rxByte == 0x81){
-                info->rxCallBack(port,rxByte+RX_PACKET_START);
+                info->rxCallBack(port,rxByte+(RX_PACKET_START_EVT<<8));
                 info->hwTxState = HW_RX_RECEIVE_BYTE;
             }
             else{
@@ -158,7 +157,7 @@ void usartReceiveHardwareHandler(UsartPort port,uint8_t rxByte){
             break;
         case HW_RX_RECEIVE_7E_BYTE :
             if(rxByte == 0x81){
-                info->rxCallBack(port,rxByte+RX_PACKET_START);
+                info->rxCallBack(port,rxByte+(RX_PACKET_START_EVT<<8));
                 info->hwTxState = HW_RX_RECEIVE_BYTE;
             }
             else if (rxByte == 0xE7){

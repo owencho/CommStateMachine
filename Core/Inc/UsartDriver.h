@@ -1,6 +1,7 @@
 #ifndef USARTDRIVER_H
 #define USARTDRIVER_H
-#include "UsartEvent.h"
+#include "Event.h"
+#include "MemAlloc.h"
 #include "UsartHardware.h"
 #include "TimerEvent.h"
 #include "Usart.h"
@@ -13,17 +14,17 @@ typedef enum{
 */
 
 #define TRANSMITTER_ADDRESS 0
-
 #define STATIC_BUFFER_SIZE 32
 
 typedef enum{
     RX_IDLE,
-    RX_START_DELIMITETER,
-    RX_RECEIVE_ADDRESS,
-    RX_RECEIVE_LENGTH,
-    RX_RECEIVE_PACKET,
-    RX_RECEIVED_DELIMETER_PACKET,
-    RX_SKIP_PACKET,
+    RX_ADDRESS_LENGTH,
+    RX_RECEIVE_PAYLOAD_STATIC_BUFFER,
+    RX_RECEIVE_PAYLOAD_MALLOC_BUFFER,
+    RX_WAIT_CRC16_STATIC_BUFFER,
+    RX_WAIT_CRC16_MALLOC_BUFFER,
+    RX_WAIT_FOR_MALLOC_BUFFER,
+    RX_WAIT_FOR_FREE_MALLOC_BUFFER,
 } RxHandlerState;
 
 typedef enum{
@@ -33,24 +34,33 @@ typedef enum{
     TX_SEND_LENGTH,
     TX_SEND_FLAG,
     TX_SEND_BYTE,
+    TX_SEND_CRC16,
 } TxHandlerState;
 
 typedef struct UsartDriverInfo UsartDriverInfo;
 struct UsartDriverInfo {
-    UsartEvent * rxUsartEvent;
+    //transmit
+    TxCallback txCallBack;
     UsartEvent * txUsartEvent;
-    RxHandlerState rxState;
     TxHandlerState txState;
     int requestTxPacket;
-    int requestRxPacket;
-    int rxCounter;
     int txCounter;
-    int rxLen;
     int txLen;
     int txFlag;
-    char * txBuffer;
-    char * rxMallocBuffer;
-    char rxStaticBuffer[STATIC_BUFFER_SIZE];
+    uint8_t * txBuffer;
+    uint8_t txCRC16 [2];
+    //receive
+    RxCallback rxCallBack;
+    UsartEvent * rxUsartEvent;
+    RxHandlerState rxState;
+    int requestRxPacket;
+    int rxCounter;
+    int rxLen;
+    uint8_t * rxMallocBuffer;
+    uint8_t rxStaticBuffer[STATIC_BUFFER_SIZE];
+    uint8_t rxCRC16 [2];
+    //SM_Common
+    SystemEvent sysEvent;
 };
 
 STATIC char * getRxPacket(UsartDriverInfo *info);
