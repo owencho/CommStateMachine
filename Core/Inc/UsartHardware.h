@@ -10,21 +10,41 @@
 #define LENGTH_ADDRESS_OFFSET 1
 #define PAYLOAD_OFFSET 2
 
+
+#define RX_PACKET_START (17<<8)
+
 typedef enum{
     LED_CONTROLLER,
     MAIN_CONTROLLER,
 } UsartPort;
+
+typedef enum{
+    HW_TX_IDLE,
+    HW_TX_SEND_DELIMITER,
+    HW_TX_SEND_BYTE,
+    HW_TX_SEND_7E_BYTE,
+} UsartHardwareTxState;
+
+typedef enum{
+    HW_RX_IDLE,
+    HW_RX_RECEIVED_DELIMITER,
+    HW_RX_RECEIVE_BYTE,
+    HW_RX_RECEIVE_7E_BYTE,
+} UsartHardwareRxState;
+
 typedef void (*UsartCallback)(UsartPort port);
-typedef char (*TxCallback)(UsartPort port);
-typedef void (*RxCallback)(UsartPort port,Char rxByte);
+typedef uint8_t (*TxCallback)(UsartPort port);
+typedef void (*RxCallback)(UsartPort port,uint8_t rxByte);
 typedef struct UsartInfo UsartInfo;
 struct UsartInfo {
     UsartRegs * usart;
     TxCallback txCallBack;
     RxCallback rxCallBack;
     UsartCallback errorCallBack;
-    int rxSkip;
+    UsartHardwareTxState hwTxState;
+    UsartHardwareRxState hwRxState;
     int txTurn;
+    int lastByte;
 };
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
@@ -33,12 +53,15 @@ STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart);
 void usartHardwareInit();
 void usartHardwareConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                        WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
+
+void usartHardwareInit();
 void hardwareUsartTransmit(UsartPort port);
 void hardwareUsartReceive(UsartPort port);
-void hardwareUsartSkipReceive(UsartPort port);
-void hardwareUsartResetSkipReceive(UsartPort port);
-//to init all the variable like stop bit ,usart length = 8bit , half duplex anot and enable usart
-
+void usartIrqHandler(UsartPort port);
+uint8_t usartTransmitHardwareHandler(UsartPort port);
+void usartReceiveHardwareHandler(UsartPort port,uint8_t rxByte);
+void setHardwareTxLastByte(UsartPort port);
+void endOfUsartTxHandler(UsartPort port);
 void configureGpio();
 
 

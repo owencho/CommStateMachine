@@ -22,6 +22,7 @@ extern EventQueue evtQueue;
 #define hasRequestedTxPacket(info) ((info)->requestTxPacket)
 #define hasRequestedRxPacket(info) ((info)->requestRxPacket)
 #define getPacketPayloadAddress(packet) (packet + PACKET_HEADER_SIZE)
+#define isLastByte(info) ((info->txLen) ==(info->txCounter))
 
 STATIC char * getRxPacket(UsartDriverInfo *info){
     char * packet = info->activeRxBuffer;
@@ -63,11 +64,12 @@ void usartConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMod
     enableIRQ();
 }
 
-void usartDriverTransmit(UsartPort port, char * txData,UsartEvent * event){
+void usartDriverTransmit(UsartPort port,uint8_t rxAddress,char * txData,UsartEvent * event){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
 
     if(!hasRequestedTxPacket(info)){
+        info->txLen =
         info->txUsartEvent = event;
         info->requestTxPacket = 1;
         hardwareUsartTransmit(port,txData);
@@ -86,109 +88,54 @@ void usartDriverReceive(UsartPort port, char * rxBuffer,UsartEvent * event){
     }
     enableIRQ();
 }
-char usartTransmissionHandler(UsartPort port){
+uint8_t usartTransmissionHandler(UsartPort port){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
     char * packet = info->activeRxBuffer;
     UsartEvent * event = info->txUsartEvent;
-    char returnTx;
+    uint8_t transmitByte;
 
     switch(info->txState){
         case TX_IDLE :
-            returnTx = 0x7E;
+            transmitByte = info->receiverAddress;
             info->state = WAIT_FOR_PACKET_PAYLOAD;
             break;
 
-        case TX_SEND_DELIMITER:
-
-            info->state = WAIT_FOR_PACKET_HEADER;
+        case TX_SEND_RECEIVER_ADDRESS:
+            transmitByte = info->transmitterAddress;
+            info->state = TX_SEND_TRANSMITTER_ADDRESS;
+            break;
+        case TX_SEND_TRANSMITTER_ADDRESS:
+            transmitByte = info->txLen;
+            info->state = TX_SEND_LENGTH;
+            break;
+        case TX_SEND_LENGTH:
+            transmitByte = info->txFlag;
+            info->state = TX_SEND_FLAG;
+            break;
+        case TX_SEND_FLAG:
+            transmitByte = txBuffer[info->txCounter];
+            info->txCounter ++;
+            if(isLastByte(info)){
+                setHardwareTxLastByte(port);
+                eventEnqueue();
+                info->txCounter = 0;
+                info->state = TX_IDLE;
+            }
             break;
     }
     enableIRQ();
+    return transmitByte;
 }
 
-void usartReceiveHandler(UsartPort port,char rxByte){
+void usartReceiveHandler(UsartPort port,uint16_t rxByte){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * evt = info->rxUsartEvent;
     char * packet = info->activeRxBuffer;
 
-    switch(info->txState){
-        case RX_IDLE :
-            if(rxByte == 0x7E){
-                info->state = RX_START_DELIMITETER;
-                info->rxCounter = 0;
-            }
-            break;
+    switch(info->rxState){
 
-        case RX_START_DELIMITETER:
-            if(rxByte == 0x81){
-                info->state = RX_RECEIVE_ADDRESS;
-            }
-            else{
-                info->state = RX_IDLE;
-            }
-            break;
-        case RX_RECEIVE_ADDRESS:
-            packet[PACKET_ADDRESS_OFFSET] =rxByte;
-            info->state = RX_RECEIVE_LENGTH;
-            break;
-        case RX_RECEIVE_LENGTH:
-            packet[LENGTH_ADDRESS_OFFSET] =rxByte;
-            rxLen = rxByte;
-            if(isCorrectAddress(info)){
-                //eventEnqueue(&sysQueue,(Event*)mallocEvent);
-                info->state = RX_RECEIVE_PACKET;
-            }
-            else{
-                hardwareUsartSkipReceive(port);
-                info->state = RX_SKIP_PACKET;
-            }
-            break;
-        case RX_RECEIVE_PACKET:
-            if(rxByte == 0x7E){
-                info->state = RX_RECEIVED_DELIMETER_PACKET;
-            }
-            else if (info->rxCounter == (info->rxLen-1)){
-                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
-                //checkCRC
-                info->state = RX_IDLE;
-            }
-            else{
-                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
-                info->rxCounter ++;
-            }
-            break;
-        case RX_RECEIVED_DELIMETER_PACKET:
-            if(rxByte == 0xE7){
-                packet[info->rxCounter+PAYLOAD_OFFSET] =0x7E;
-                if(info->rxCounter == (info->rxLen-1)){
-                    //checkCRC
-                    info->state = RX_IDLE;
-                }
-                else{
-                    info->rxCounter ++;
-                    info->state = RX_RECEIVE_PACKET;
-                }
-            }
-            else if(rxByte == 0x81){
-                info->rxCounter = 0;
-                info->state = RX_RECEIVE_ADDRESS;
-            }
-            else{
-                packet[info->rxCounter+PAYLOAD_OFFSET] =rxByte;
-                info->rxCounter ++;
-                info->state = RX_RECEIVE_PACKET;
-            }
-            break;
-        case RX_SKIP_PACKET:
-            if (info->rxCounter == (info->rxLen-1)){
-                hardwareUsartResetSkipReceive(port);
-                info->rxCounter = 0;
-                info->rxLen = 0;
-                info->state = RX_IDLE;
-            }
-            break;
     }
     enableIRQ();
 }

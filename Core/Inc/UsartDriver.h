@@ -11,6 +11,11 @@ typedef enum{
     WAIT_FOR_PACKET_PAYLOAD,
 } RxHandlerState;
 */
+
+#define TRANSMITTER_ADDRESS 0
+
+#define STATIC_BUFFER_SIZE 32
+
 typedef enum{
     RX_IDLE,
     RX_START_DELIMITETER,
@@ -23,27 +28,29 @@ typedef enum{
 
 typedef enum{
     TX_IDLE,
-    TX_SEND_DELIMITER,
-    TX_SEND_ADDRESS,
+    TX_SEND_RECEIVER_ADDRESS,
+    TX_SEND_TRANSMITTER_ADDRESS,
     TX_SEND_LENGTH,
-    TX_SEND_PACKET,
-    TX_SEND_CRC,
+    TX_SEND_FLAG,
+    TX_SEND_BYTE,
 } TxHandlerState;
 
 typedef struct UsartDriverInfo UsartDriverInfo;
 struct UsartDriverInfo {
     UsartEvent * rxUsartEvent;
     UsartEvent * txUsartEvent;
-    char * activeRxBuffer;
-    char * spareRxBuffer;
-    int rxCounter;
-    int txCounter;
-    int rxLen;
-    int txLen;
     RxHandlerState rxState;
     TxHandlerState txState;
     int requestTxPacket;
     int requestRxPacket;
+    int rxCounter;
+    int txCounter;
+    int rxLen;
+    int txLen;
+    int txFlag;
+    char * txBuffer;
+    char * rxMallocBuffer;
+    char rxStaticBuffer[STATIC_BUFFER_SIZE];
 };
 
 STATIC char * getRxPacket(UsartDriverInfo *info);
