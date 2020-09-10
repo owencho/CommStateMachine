@@ -5,6 +5,9 @@
     #define STATIC static
 #else
     #define STATIC
-#endif    
+#endif
+
+#define freeMem(x)                                      \
+            do{if(x) free(x);}while(0)
 
 #endif // SM_COMMON_H

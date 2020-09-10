@@ -9,7 +9,6 @@
 #include "EventCompare.h"
 #include "List.h"
 #include "ListItemCompare.h"
-#include "UsartEvent.h"
 #include "TimerEventQueue.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -44,6 +43,7 @@ void test_UsartDriver_usartConfig(void){
     fakeCheckIRQ(__LINE__);
 }
 */
+/*
 void test_UsartDriver_getRxPacket(void){
     UsartDriverInfo * info =&usartDriverInfo[LED_CONTROLLER];
     info->activeRxBuffer = "abc";
@@ -161,3 +161,4 @@ void test_usartRxCompletionHandler_wrong_address(void){
     TEST_ASSERT_EQUAL(WAIT_FOR_PACKET_HEADER,info->state);
     fakeCheckIRQ(__LINE__);
 }
+*/

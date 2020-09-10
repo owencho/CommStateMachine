@@ -6,7 +6,6 @@
 #include "Rcc.h"
 #include "Nvic.h"
 #include "Irq.h"
-#include "UsartEvent.h"
 #include "UsartDriver.h"
 #include "TimerEventQueue.h"
 #include <stdlib.h>
@@ -23,8 +22,8 @@ UsartInfo usartInfo[] = {
 STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart){
     UsartInfo * info = &usartInfo[port];
     info->usart = usart;
-    hardwareInfo->handleRxByte = (RxCallback)usartReceiveHandler;
-    hardwareInfo->handleTxByte = (TxCallback)usartTransmissionHandler;
+    info->rxCallBack = (RxCallback)usartReceiveHandler;
+    info->txCallBack = (TxCallback)usartTransmissionHandler;
     info->hwTxState = HW_TX_IDLE;
     info->hwRxState = HW_RX_IDLE;
     info->txTurn =0;
@@ -78,13 +77,12 @@ void hardwareUsartReceive(UsartPort port){
 void usartIrqHandler(UsartPort port){
     UsartInfo * info = &usartInfo[port];
     UsartRegs * usart = info->usart;
-    int skipReceive = info->rxSkip;
     char rxByte;
     char txByte;
 
     if(info->txTurn){
         txByte = usartTransmitHardwareHandler(port);
-        usartSend(usart,txBuffer);
+        usartSend(usart,txByte);
     }
     else{
         rxByte = usartReceive(usart);
@@ -135,21 +133,21 @@ void usartReceiveHardwareHandler(UsartPort port,uint8_t rxByte){
     switch(info->hwRxState){
         case HW_RX_IDLE :
             if(rxByte == 0x7E){
-                info->hwTxState = HW_RX_RECEIVED_DELIMITER;
+                info->hwRxState = HW_RX_RECEIVED_DELIMITER;
             }
             break;
         case HW_RX_RECEIVED_DELIMITER :
             if(rxByte == 0x81){
-                info->rxCallBack(port,rxByte+(RX_PACKET_START_EVT<<8));
-                info->hwTxState = HW_RX_RECEIVE_BYTE;
+                info->rxCallBack(port,RX_PACKET_START<<8);
+                info->hwRxState = HW_RX_RECEIVE_BYTE;
             }
             else{
-                info->hwTxState = HW_RX_IDLE;
+                info->hwRxState = HW_RX_IDLE;
             }
             break;
         case HW_RX_RECEIVE_BYTE :
             if(rxByte == 0x7E){
-                info->hwTxState = HW_RX_RECEIVE_7E_BYTE;
+                info->hwRxState = HW_RX_RECEIVE_7E_BYTE;
             }
             else{
                 info->rxCallBack(port,rxByte);
@@ -157,15 +155,15 @@ void usartReceiveHardwareHandler(UsartPort port,uint8_t rxByte){
             break;
         case HW_RX_RECEIVE_7E_BYTE :
             if(rxByte == 0x81){
-                info->rxCallBack(port,rxByte+(RX_PACKET_START_EVT<<8));
-                info->hwTxState = HW_RX_RECEIVE_BYTE;
+                info->rxCallBack(port,(RX_PACKET_START<<8));
+                info->hwRxState = HW_RX_RECEIVE_BYTE;
             }
             else if (rxByte == 0xE7){
                 info->rxCallBack(port,0x7E);
-                info->hwTxState = HW_RX_RECEIVE_BYTE;
+                info->hwRxState = HW_RX_RECEIVE_BYTE;
             }
             else{
-                info->hwTxState = HW_RX_IDLE;
+                info->hwRxState = HW_RX_IDLE;
             }
             break;
     }
@@ -182,7 +180,6 @@ void endOfUsartTxHandler(UsartPort port){
     usartDisableInterrupt(usart,TRANS_COMPLETE);
     usartDisableTransmission(usart);
     usartEnableReceiver(usart);
-    info->txCompleteCallBack(port);
     info->txTurn = 0;
 }
 

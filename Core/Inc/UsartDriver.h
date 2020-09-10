@@ -1,7 +1,6 @@
 #ifndef USARTDRIVER_H
 #define USARTDRIVER_H
 #include "Event.h"
-#include "MemAlloc.h"
 #include "UsartHardware.h"
 #include "TimerEvent.h"
 #include "Usart.h"
@@ -13,8 +12,10 @@ typedef enum{
 } RxHandlerState;
 */
 
-#define TRANSMITTER_ADDRESS 0
 #define STATIC_BUFFER_SIZE 32
+
+#define MALLOC_REQUEST_EVT 0x20
+#define FREE_MALLOC_EVT 0x30
 
 typedef enum{
     RX_IDLE,
@@ -47,6 +48,7 @@ struct UsartDriverInfo {
     int txCounter;
     int txLen;
     int txFlag;
+    uint8_t  receiverAddress;
     uint8_t * txBuffer;
     uint8_t txCRC16 [2];
     //receive
@@ -59,8 +61,9 @@ struct UsartDriverInfo {
     uint8_t * rxMallocBuffer;
     uint8_t rxStaticBuffer[STATIC_BUFFER_SIZE];
     uint8_t rxCRC16 [2];
-    //SM_Common
+    //Common
     SystemEvent sysEvent;
+    UsartPort portName;
 };
 
 STATIC char * getRxPacket(UsartDriverInfo *info);
@@ -71,18 +74,29 @@ void usartInit();
 void usartConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
 //need to add more config inside
-void usartDriverTransmit(UsartPort port, char * txData,UsartEvent * event);
-void usartDriverReceive(UsartPort port, char * txData,UsartEvent * event);
+void usartDriverTransmit(UsartPort port,uint8_t rxAddress,char * txData,UsartEvent * event);
+//void usartDriverReceive(UsartPort port, char * txData,UsartEvent * event);
 // the data store is retrieved in the UsartEvent
 
 void usartRemoveReceivefromQueue(UsartPort port , UsartEvent * event);
 void usartRemoveReceiveTimer(UsartPort port , TimerEvent * event);
 // hardwareHandler
-void usartReceiveHandler(UsartPort port,char rxByte);
-char usartTransmissionHandler(UsartPort port);
+void usartReceiveHandler(UsartPort port,uint16_t rxByte);
+uint8_t usartTransmissionHandler(UsartPort port);
+//Internal function
+STATIC void generateEventForReceiveComplete(UsartPort port);
+STATIC int checkRxPacketCRC(UsartPort port);
+STATIC void handleCRC16WithStaticBuffer(UsartPort port,uint16_t rxByte);
+STATIC void handleRxMallocBufferPayload(UsartPort port,uint16_t rxByte);
+STATIC void handleRxStaticBufferPayload(UsartPort port,uint16_t rxByte);
+STATIC void handleRxAddressAndLength(UsartPort port,uint16_t rxByte);
+//misc
+void resetUsartDriverReceive(UsartPort port);
+//memoryAllocation
+void allocMemForReceiver(Event * event);
+void freeMemForReceiver(Event * event);
 /*
 void usartRxCompletionHandler(UsartPort port);
 void usartTxCompletionHandler(UsartPort port);
 */
-void usartHandleRxByte(char rx);
 #endif // USARTDRIVER_H
