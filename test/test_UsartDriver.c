@@ -95,11 +95,11 @@ void test_usartTransmissionHandler_idle_to_send_rxAddress(){
     //fakeInfo->lastByte
     TEST_ASSERT_EQUAL(usartTransmissionHandler(LED_CONTROLLER),'c');
     TEST_ASSERT_EQUAL(fakeInfo->txState,TX_SEND_BYTE);
+	fakeCheckIRQ(__LINE__);
 }
-
+//////Receive Handler//////////////////////////////////////////////////////
+//RX_PACKET_START state
 void test_handleRxAddressAndLength_correct_address(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
@@ -113,15 +113,13 @@ void test_handleRxAddressAndLength_correct_address(){
     TEST_ASSERT_EQUAL(fakeInfo->rxStaticBuffer[1],0x12);
     TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_ADDRESS_LENGTH);
 
-    eventEnqueue_Expect(&sysQueue,&fakeInfo->sysEvent);
+    eventEnqueue_Expect(&sysQueue,(Event*)&fakeInfo->sysEvent);
     handleRxAddressAndLength(LED_CONTROLLER,0x3);
     TEST_ASSERT_EQUAL(fakeInfo->rxStaticBuffer[2],0x3);
     TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_RECEIVE_PAYLOAD_STATIC_BUFFER);
 }
 
 void test_handleRxAddressAndLength_wrong_address(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
@@ -141,8 +139,6 @@ void test_handleRxAddressAndLength_wrong_address(){
 }
 
 void test_handleRxAddressAndLength_rx_packet_start(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
@@ -153,9 +149,8 @@ void test_handleRxAddressAndLength_rx_packet_start(){
     TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_ADDRESS_LENGTH);
 }
 
+//RX_PACKET_START state
 void test_handleRxStaticBufferPayload_rx_data_receive(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
@@ -173,8 +168,6 @@ void test_handleRxStaticBufferPayload_rx_data_receive(){
 }
 
 void test_handleRxStaticBufferPayload_rx_data_packet_start(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
@@ -187,21 +180,293 @@ void test_handleRxStaticBufferPayload_rx_data_packet_start(){
 }
 
 void test_handleRxStaticBufferPayload_malloc_request_evt(){
-    disableIRQ_StubWithCallback(fake_disableIRQ);
-    enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
     //initialization
     usartDriverInit(LED_CONTROLLER);
     fakeInfo->rxCounter = 3;
     fakeInfo->rxLen = 10;
     fakeInfo->rxState = RX_RECEIVE_PAYLOAD_STATIC_BUFFER;
-
+	staticBuffer[0] ='a';
+	staticBuffer[1] ='b';
     //main
     fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
     handleRxStaticBufferPayload(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
     TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_RECEIVE_PAYLOAD_MALLOC_BUFFER);
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[0],'a');
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[1],'b');
+	free(fakeInfo->rxMallocBuffer);
 }
 
+void test_handleRxStaticBufferPayload_last_packet(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxCounter = 7;
+    fakeInfo->rxLen = 3;
+    fakeInfo->rxState = RX_RECEIVE_PAYLOAD_STATIC_BUFFER;
+
+    //main
+    handleRxStaticBufferPayload(LED_CONTROLLER,0x12);
+    TEST_ASSERT_EQUAL(fakeInfo->rxCRC16[0],0x12);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_CRC16_STATIC_BUFFER);
+}
+
+void test_handleRxMallocBufferPayload_addPacket(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxCounter = 3;
+    fakeInfo->rxLen = 10;
+    fakeInfo->rxState = RX_RECEIVE_PAYLOAD_MALLOC_BUFFER;
+    fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
+    //main
+    handleRxMallocBufferPayload(LED_CONTROLLER,0x22);
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[3],0x22);
+    TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_RECEIVE_PAYLOAD_MALLOC_BUFFER);
+
+	handleRxMallocBufferPayload(LED_CONTROLLER,0x23);
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[4],0x23);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_RECEIVE_PAYLOAD_MALLOC_BUFFER);
+
+	free(fakeInfo->rxMallocBuffer);
+}
+
+void test_handleRxMallocBufferPayload_packet_start(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxCounter = 3;
+    fakeInfo->rxLen = 10;
+    fakeInfo->rxState = RX_RECEIVE_PAYLOAD_MALLOC_BUFFER;
+	eventEnqueue_Expect(&sysQueue,(Event*)&fakeInfo->sysEvent);
+    //main
+    handleRxMallocBufferPayload(LED_CONTROLLER,(RX_PACKET_START<<8));
+	TEST_ASSERT_EQUAL(fakeInfo->rxCounter,0);
+    TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_FREE_MALLOC_BUFFER);
+}
+
+void test_handleRxMallocBufferPayload_last_packet(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxCounter = 7;
+    fakeInfo->rxLen = 3;
+    fakeInfo->rxState = RX_RECEIVE_PAYLOAD_MALLOC_BUFFER;
+
+    //main
+    handleRxMallocBufferPayload(LED_CONTROLLER,0x12);
+    TEST_ASSERT_EQUAL(fakeInfo->rxCRC16[0],0x12);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_CRC16_MALLOC_BUFFER);
+}
+
+void test_handleCRC16WithStaticBuffer_rx_data_packet_start(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
+    //main
+    handleCRC16WithStaticBuffer(LED_CONTROLLER,(RX_PACKET_START<<8));
+    TEST_ASSERT_EQUAL(fakeInfo->rxCounter,0);
+    TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_ADDRESS_LENGTH);
+}
+
+void test_handleCRC16WithStaticBuffer_malloc_request_evt(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxCounter = 3;
+    fakeInfo->rxLen = 10;
+    fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
+	staticBuffer[0] ='a';
+	staticBuffer[1] ='b';
+    //main
+    fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
+    handleCRC16WithStaticBuffer(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
+    TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_CRC16_MALLOC_BUFFER);
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[0],'a');
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[1],'b');
+	free(fakeInfo->rxMallocBuffer);
+}
+
+void test_handleCRC16WithStaticBuffer_CRC_packet_received(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
+
+    //main
+    handleCRC16WithStaticBuffer(LED_CONTROLLER,0x55);
+    TEST_ASSERT_EQUAL(fakeInfo->rxCRC16[1],0x55);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_MALLOC_BUFFER);
+}
+
+void test_handleCRC16WithMallocBuffer_rx_data_packet_start(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
+	eventEnqueue_Expect(&sysQueue,(Event*)&fakeInfo->sysEvent);
+    //main
+    handleCRC16WithMallocBuffer(LED_CONTROLLER,(RX_PACKET_START<<8));
+    TEST_ASSERT_EQUAL(fakeInfo->rxCounter,0);
+    TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_FREE_MALLOC_BUFFER);
+}
+
+
+void test_handleCRC16WithMallocBuffer_CRC_packet_received(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
+	fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
+	fakeInfo->rxUsartEvent = (UsartEvent*) malloc(sizeof(UsartEvent));
+	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+    //main
+
+    handleCRC16WithMallocBuffer(LED_CONTROLLER,0x55);
+    TEST_ASSERT_EQUAL(fakeInfo->rxCRC16[1],0x55);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,RX_CRC_ERROR_EVENT);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+}
+
+void test_usartReceiveHandler_wait_for_malloc_with_malloc_evt(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_FOR_MALLOC_BUFFER;
+	fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
+	fakeInfo->rxUsartEvent = (UsartEvent*) malloc(sizeof(UsartEvent));
+	staticBuffer[0] ='a';
+	staticBuffer[1] ='b';
+	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+    //main
+    usartReceiveHandler(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[0],'a');
+	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[1],'b');
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,RX_CRC_ERROR_EVENT);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxUsartEvent);
+}
+
+void test_usartReceiveHandler_wait_for_malloc_without_malloc_evt(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_FOR_MALLOC_BUFFER;
+    //main
+    usartReceiveHandler(LED_CONTROLLER,(FREE_MALLOC_EVT << 8));
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_MALLOC_BUFFER);
+}
+
+void test_usartReceiveHandler_wait_for_free_memory_with_free_malloc_evt(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
+    //main
+    usartReceiveHandler(LED_CONTROLLER,(FREE_MALLOC_EVT << 8));
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
+}
+
+void test_usartReceiveHandler_wait_for_free_memory_without_free_malloc_evt(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    fakeInfo->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
+    //main
+    usartReceiveHandler(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_FREE_MALLOC_BUFFER);
+}
+
+void test_checkRxPacketCRC_pass(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
+	uint16_t crc16;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxLen = 3;
+	crc16 = generateCrc16(&fakeBuffer[PAYLOAD_OFFSET], 3);
+	*(uint16_t*)&rxCRC16[0] = crc16;
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+    //main
+	TEST_ASSERT_EQUAL(checkRxPacketCRC(LED_CONTROLLER),1);
+}
+
+void test_checkRxPacketCRC_fail(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
+	uint16_t crc16;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxLen = 2;
+	crc16 = generateCrc16(&fakeBuffer[PAYLOAD_OFFSET], 3);
+	*(uint16_t*)&rxCRC16[0] = crc16;
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+    //main
+	TEST_ASSERT_EQUAL(checkRxPacketCRC(LED_CONTROLLER),0);
+}
+
+void test_generateEventForReceiveComplete_pass(){
+    UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
+	uint16_t crc16;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxLen = 3;
+	crc16 = generateCrc16(&fakeBuffer[PAYLOAD_OFFSET], 3);
+	*(uint16_t*)&rxCRC16[0] = crc16;
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+	fakeInfo->rxUsartEvent = &rxEvent;
+	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+    //main
+	generateEventForReceiveComplete(LED_CONTROLLER);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,PACKET_RX_EVENT);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+}
+
+void test_generateEventForReceiveComplete_fail(){
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
+	uint16_t crc16;
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxLen = 2;
+	crc16 = generateCrc16(&fakeBuffer[PAYLOAD_OFFSET], 3);
+	*(uint16_t*)&rxCRC16[0] = crc16;
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+	fakeInfo->rxUsartEvent = &rxEvent;
+	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+    //main
+	generateEventForReceiveComplete(LED_CONTROLLER);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,RX_CRC_ERROR_EVENT);
+	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+}
+
+void test_resetUsartDriverReceive(){
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+    //main
+	resetUsartDriverReceive(LED_CONTROLLER);
+	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
+	TEST_ASSERT_EQUAL(fakeInfo->rxCounter,0);
+	TEST_ASSERT_EQUAL(fakeInfo->rxLen,0);
+}
 /*
 void test_UsartDriver_getRxPacket(void){
     UsartDriverInfo * info =&usartDriverInfo[LED_CONTROLLER];

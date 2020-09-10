@@ -82,6 +82,7 @@ STATIC void handleRxAddressAndLength(UsartPort port,uint16_t rxByte);
 STATIC void handleRxStaticBufferPayload(UsartPort port,uint16_t rxByte);
 STATIC void handleRxMallocBufferPayload(UsartPort port,uint16_t rxByte);
 STATIC void handleCRC16WithStaticBuffer(UsartPort port,uint16_t rxByte);
+STATIC void handleCRC16WithMallocBuffer(UsartPort port,uint16_t rxByte);
 STATIC int checkRxPacketCRC(UsartPort port);
 STATIC void generateEventForReceiveComplete(UsartPort port);
 STATIC void resetUsartDriverReceive(UsartPort port);

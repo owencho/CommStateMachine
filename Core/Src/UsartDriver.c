@@ -191,26 +191,19 @@ void usartReceiveHandler(UsartPort port,uint16_t rxByte){
             handleCRC16WithStaticBuffer(port,rxByte);
             break;
         case RX_WAIT_CRC16_MALLOC_BUFFER :
-            if(eventByte == RX_PACKET_START){
-                resetUsartDriverReceive(port);
-                info->rxState = RX_ADDRESS_LENGTH;
-            }
-            else{
-                rxCRC16[1] = dataByte;
-                checkRxPacketCRC(port);
-                info->rxState = RX_IDLE;
-            }
+			handleCRC16WithMallocBuffer(port,rxByte);
             break;
         case RX_WAIT_FOR_MALLOC_BUFFER :
             if(eventByte == MALLOC_REQUEST_EVT){
                 strcpy(mallocBuffer, staticBuffer);
-                info->rxState = RX_WAIT_CRC16_MALLOC_BUFFER;
+				generateEventForReceiveComplete(port);
+                info->rxState = RX_IDLE;
             }
             break;
         case RX_WAIT_FOR_FREE_MALLOC_BUFFER:
             if(eventByte == FREE_MALLOC_EVT){
-                strcpy(mallocBuffer, staticBuffer);
-                info->rxState = RX_WAIT_CRC16_MALLOC_BUFFER;
+				resetUsartDriverReceive(port);
+                info->rxState = RX_IDLE;
             }
     }
 }
@@ -281,6 +274,9 @@ STATIC void handleRxMallocBufferPayload(UsartPort port,uint16_t rxByte){
     uint8_t * rxCRC16 = info->rxCRC16;
 
     if(eventByte == RX_PACKET_START){
+		info->sysEvent.stateMachineInfo = &freeMemInfo;
+		info->sysEvent.data = (void*)info;
+		eventEnqueue(&sysQueue,(Event*)&info->sysEvent);
         resetUsartDriverReceive(port);
         info->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
     }
@@ -316,6 +312,26 @@ STATIC void handleCRC16WithStaticBuffer(UsartPort port,uint16_t rxByte){
     }
 }
 
+STATIC void handleCRC16WithMallocBuffer(UsartPort port,uint16_t rxByte){
+    uint8_t eventByte = rxByte >> 8;
+    uint8_t dataByte = rxByte & 0xFF;
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    uint8_t * rxCRC16 = info->rxCRC16;
+
+	if(eventByte == RX_PACKET_START){
+		info->sysEvent.stateMachineInfo = &freeMemInfo;
+		info->sysEvent.data = (void*)info;
+		eventEnqueue(&sysQueue,(Event*)&info->sysEvent);
+		resetUsartDriverReceive(port);
+		info->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
+	}
+	else{
+		rxCRC16[1] = dataByte;
+		generateEventForReceiveComplete(port);
+		info->rxState = RX_IDLE;
+	}
+}
+
 STATIC int checkRxPacketCRC(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     int rxLength = info->rxLen;
@@ -334,16 +350,16 @@ STATIC int checkRxPacketCRC(UsartPort port){
 
 STATIC void generateEventForReceiveComplete(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
-    UsartEvent * txUsartEvent = info->txUsartEvent;
+    UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
     if(checkRxPacketCRC(port)){
-        txUsartEvent->type = PACKET_RX_EVENT;
+        rxUsartEvent->type = PACKET_RX_EVENT;
     }
     else{
-        txUsartEvent->type = RX_CRC_ERROR_EVENT;
+        rxUsartEvent->type = RX_CRC_ERROR_EVENT;
     }
-    txUsartEvent->buffer = rxBuffer;
-    eventEnqueue(&evtQueue,(Event*)txUsartEvent);
+    rxUsartEvent->buffer = rxBuffer;
+    eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
 }
 
 STATIC void resetUsartDriverReceive(UsartPort port){
@@ -351,6 +367,16 @@ STATIC void resetUsartDriverReceive(UsartPort port){
     info->rxState = RX_IDLE;
     info->rxCounter = 0;
     info->rxLen = 0;
+}
+
+STATIC void generateCRC16forPacket(UsartPort port){
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    uint8_t * txBuffer = info->txBuffer;
+    uint8_t * txCRC16 = info->txCRC16;
+    int length = info->txLen;
+    uint16_t crc16 ;
+    crc16 = generateCrc16(txBuffer, length);
+	*(uint16_t*)&txCRC16[0] = crc16;
 }
 
 void allocMemForReceiver(Event * event){
@@ -370,14 +396,4 @@ void freeMemForReceiver(Event * event){
     enableIRQ();
     usartReceiveHandler(info->portName,(FREE_MALLOC_EVT << 8));
 
-}
-
-STATIC void generateCRC16forPacket(UsartPort port){
-    UsartDriverInfo * info =&usartDriverInfo[port];
-    uint8_t * txBuffer = info->txBuffer;
-    uint8_t * txCRC16 = info->txCRC16;
-    int length = info->txLen;
-    uint16_t crc16 ;
-    crc16 = generateCrc16(txBuffer, length);
-	*(uint16_t*)&txCRC16[0] = crc16;
 }
