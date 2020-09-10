@@ -50,7 +50,7 @@ struct UsartInfo {
 };
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))
-STATIC int findPacketLength(char* data);
+
 STATIC void initUsartHardwareInfo(UsartPort port ,UsartRegs * usart);
 void usartHardwareInit();
 void usartHardwareConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
