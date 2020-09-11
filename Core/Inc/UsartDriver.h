@@ -72,11 +72,11 @@ STATIC void usartDriverInit(UsartPort port);
 void usartInit();
 void usartConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMode parityMode,
                WordLength length,StopBit sBitMode,EnableDisable halfDuplex);
-void usartDriverTransmit(UsartPort port,uint8_t rxAddress,uint8_t * txData,UsartEvent * event);
+void usartDriverTransmit(UsartPort port,uint8_t rxAddress,int length,uint8_t * txData,UsartEvent * event);
 uint8_t usartTransmissionHandler(UsartPort port);
 void usartReceiveHandler(UsartPort port,uint16_t rxByte);
 //internal function for usartTransmit
-STATIC void generateCRC16forPacket(UsartPort port);
+STATIC void generateCRC16forTxPacket(UsartPort port);
 //subfunction of receiverHandler
 STATIC void handleRxAddressAndLength(UsartPort port,uint16_t rxByte);
 STATIC void handleRxStaticBufferPayload(UsartPort port,uint16_t rxByte);

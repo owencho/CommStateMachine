@@ -25,7 +25,7 @@ UsartDriverInfo usartDriverInfo[] = {
 #define hasRequestedTxPacket(info) ((info)->requestTxPacket)
 #define hasRequestedRxPacket(info) ((info)->requestRxPacket)
 #define getPacketPayloadAddress(packet) (packet + PACKET_HEADER_SIZE)
-#define isLastTxByte(info) ((info->txLen) < (info->txCounter))
+#define isLastTxByte(info) ((info->txLen) < (info->txCounter)+1)
 #define isLastRxByte(info) ((info->rxLen) < (info->rxCounter)-PAYLOAD_OFFSET)
 
 STATIC int findPacketLength(uint8_t* data){
@@ -82,16 +82,16 @@ void usartConfig(UsartPort port,int baudRate,OversampMode overSampMode,ParityMod
     enableIRQ();
 }
 
-void usartDriverTransmit(UsartPort port,uint8_t rxAddress,uint8_t * txData,UsartEvent * event){
+void usartDriverTransmit(UsartPort port,uint8_t rxAddress,int length,uint8_t * txData,UsartEvent * event){
     disableIRQ();
     UsartDriverInfo * info =&usartDriverInfo[port];
 
     if(!hasRequestedTxPacket(info)){
-        info->txLen =findPacketLength(txData);
+        info->txLen =length;
         info->receiverAddress = rxAddress;
         info->txUsartEvent = event;
         info->txBuffer = txData;
-        generateCRC16forPacket(port);
+        generateCRC16forTxPacket(port);
         info->requestTxPacket = 1;
         hardwareUsartTransmit(port);
     }
@@ -149,7 +149,7 @@ uint8_t usartTransmissionHandler(UsartPort port){
         case TX_SEND_CRC16:
             transmitByte = txCRC16[info->txCounter];
             info->txCounter ++;
-            if(info->txCounter == 2){
+            if(info->txCounter > 1){
                 event->type = TX_COMPLETE;
                 setHardwareTxLastByte(port);
                 eventEnqueue(&evtQueue,(Event*)event);
@@ -369,7 +369,7 @@ STATIC void resetUsartDriverReceive(UsartPort port){
     info->rxLen = 0;
 }
 
-STATIC void generateCRC16forPacket(UsartPort port){
+STATIC void generateCRC16forTxPacket(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     uint8_t * txBuffer = info->txBuffer;
     uint8_t * txCRC16 = info->txCRC16;
