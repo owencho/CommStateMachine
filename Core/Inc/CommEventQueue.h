@@ -3,8 +3,8 @@
 #include "EventQueue.h"
 #include "TimerEventQueue.h"
 
-EventQueue evtQueue;
-EventQueue sysQueue;
-TimerEventQueue timerQueue;
+extern EventQueue evtQueue;
+extern EventQueue sysQueue;
+extern TimerEventQueue timerQueue;
 
-#endif // COMMSTATEMACHINE_H
+#endif // COMMEVENTQUEUE_H
