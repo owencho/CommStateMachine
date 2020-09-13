@@ -38,6 +38,7 @@
   :source:
     - Core/Src/**
     - STM32F429_hardware/src/**
+    - AVLTree/src/**
   :support:
     - test/support
   :libraries: []
