@@ -5,17 +5,24 @@
 #include "TimerEvent.h"
 #include "Usart.h"
 #include "SM_Common.h"
-/*
-typedef enum{
-    WAIT_FOR_PACKET_HEADER,
-    WAIT_FOR_PACKET_PAYLOAD,
-} RxHandlerState;
-*/
 
+//PACKET LOCATION
+#define PACKET_HEADER_SIZE 2
+#define RECEIVER_ADDRESS_OFFSET 0
+#define SENDER_ADDRESS_OFFSET 1
+#define LENGTH_OFFSET 2
+#define PAYLOAD_OFFSET 3
+#define CMD_OFFSET 4
+//STATIC BUFFER SIZE
 #define STATIC_BUFFER_SIZE 32
 
+//MALLOC EVENT
 #define MALLOC_REQUEST_EVT 0x20
 #define FREE_MALLOC_EVT 0x30
+
+typedef enum{
+	UF_NOT_AVAILABLE,
+} UsartDriverFlags;
 
 typedef enum{
     RX_IDLE,
@@ -84,8 +91,11 @@ STATIC void handleRxMallocBufferPayload(UsartPort port,uint16_t rxByte);
 STATIC void handleCRC16WithStaticBuffer(UsartPort port,uint16_t rxByte);
 STATIC void handleCRC16WithMallocBuffer(UsartPort port,uint16_t rxByte);
 STATIC int checkRxPacketCRC(UsartPort port);
-STATIC void generateEventForReceiveComplete(UsartPort port);
 STATIC void resetUsartDriverReceive(UsartPort port);
+//not tested
+STATIC void requestForFreeMemoryEvent(UsartPort port);
+STATIC void generateAndSendNotAvailablePacket(UsartPort port);
+STATIC void generateEventForReceiveComplete(UsartPort port);
 //malloc function
 void allocMemForReceiver(Event * event);
 void freeMemForReceiver(Event * event);

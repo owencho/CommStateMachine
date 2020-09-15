@@ -6,11 +6,6 @@
 #include "SM_Common.h"
 //This is user define configuration
 #define USART_ADDRESS 0x34
-#define PACKET_HEADER_SIZE 2
-#define RECEIVER_ADDRESS_OFFSET 0
-#define SENDER_ADDRESS_OFFSET 1
-#define LENGTH_OFFSET 2
-#define PAYLOAD_OFFSET 3
 
 #define RX_PACKET_START 0x11
 

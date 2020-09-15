@@ -7,6 +7,7 @@
 #include "Irq.h"
 #include "TimerEventQueue.h"
 #include "CommEventQueue.h"
+#include "Avl.h"
 #include "Crc.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,6 +28,7 @@ UsartDriverInfo usartDriverInfo[] = {
 #define getPacketPayloadAddress(packet) (packet + PACKET_HEADER_SIZE)
 #define isLastTxByte(info) ((info->txLen) < (info->txCounter)+1)
 #define isLastRxByte(info) ((info->rxLen) < (info->rxCounter)-PAYLOAD_OFFSET)
+#define getCommandByte(info) (info->rxMallocBuffer[CMD_OFFSET])
 
 STATIC int findPacketLength(uint8_t* data){
     int size = *(&data + 1) - data;
@@ -97,18 +99,7 @@ void usartDriverTransmit(UsartPort port,uint8_t rxAddress,int length,uint8_t * t
     }
     enableIRQ();
 }
-/*
-void usartDriverReceive(UsartPort port){
-    disableIRQ();
-    UsartDriverInfo * info =&usartDriverInfo[port];
 
-    if(!hasRequestedRxPacket(info)){
-        info->rxUsartEvent = event;
-        info->requestRxPacket = 1;
-    }
-    enableIRQ();
-}
-*/
 uint8_t usartTransmissionHandler(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     uint8_t * txBuffer = info->txBuffer;
@@ -154,7 +145,8 @@ uint8_t usartTransmissionHandler(UsartPort port){
                 setHardwareTxLastByte(port);
                 eventEnqueue(&evtQueue,(Event*)event);
                 hardwareUsartReceive(port);
-                info->txCounter = 0;
+				info->txCounter = 0;
+                info->requestTxPacket = 0;
                 info->txState = TX_IDLE;
             }
             break;
@@ -274,9 +266,7 @@ STATIC void handleRxMallocBufferPayload(UsartPort port,uint16_t rxByte){
     uint8_t * rxCRC16 = info->rxCRC16;
 
     if(eventByte == RX_PACKET_START){
-		info->sysEvent.stateMachineInfo = &freeMemInfo;
-		info->sysEvent.data = (void*)info;
-		eventEnqueue(&sysQueue,(Event*)&info->sysEvent);
+		requestForFreeMemoryEvent(port);
         resetUsartDriverReceive(port);
         info->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
     }
@@ -319,9 +309,7 @@ STATIC void handleCRC16WithMallocBuffer(UsartPort port,uint16_t rxByte){
     uint8_t * rxCRC16 = info->rxCRC16;
 
 	if(eventByte == RX_PACKET_START){
-		info->sysEvent.stateMachineInfo = &freeMemInfo;
-		info->sysEvent.data = (void*)info;
-		eventEnqueue(&sysQueue,(Event*)&info->sysEvent);
+		requestForFreeMemoryEvent(port);
 		resetUsartDriverReceive(port);
 		info->rxState = RX_WAIT_FOR_FREE_MALLOC_BUFFER;
 	}
@@ -352,14 +340,27 @@ STATIC void generateEventForReceiveComplete(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
+	int cmd = getCommandByte(info);
+	CmdNode * cmdNode = avlFindNode(rootCmdNode,(void*)&cmd,(Compare)cmdCompareForAVL);
+
     if(checkRxPacketCRC(port)){
         rxUsartEvent->type = PACKET_RX_EVENT;
     }
     else{
         rxUsartEvent->type = RX_CRC_ERROR_EVENT;
     }
-    rxUsartEvent->buffer = rxBuffer;
-    eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
+
+	if(!cmdNode){
+		//free malloc event
+		requestForFreeMemoryEvent(port);
+		//request to send back
+
+		return;
+	}
+	info->rxUsartEvent->stateMachineInfo = (GenericStateMachine *)info;
+	rxUsartEvent->buffer = rxBuffer;
+	eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
+
 }
 
 STATIC void resetUsartDriverReceive(UsartPort port){
@@ -379,6 +380,17 @@ STATIC void generateCRC16forTxPacket(UsartPort port){
 	*(uint16_t*)&txCRC16[0] = crc16;
 }
 
+STATIC void generateAndSendNotAvailablePacket(UsartPort port){
+
+}
+
+STATIC void requestForFreeMemoryEvent(UsartPort port){
+	UsartDriverInfo * info =&usartDriverInfo[port];
+	info->sysEvent.stateMachineInfo = &freeMemInfo;
+	info->sysEvent.data = (void*)info;
+	eventEnqueue(&sysQueue,(Event*)&info->sysEvent);
+}
+
 void allocMemForReceiver(Event * event){
     disableIRQ();
     UsartDriverInfo * info =(UsartDriverInfo*)event->data;
@@ -395,5 +407,4 @@ void freeMemForReceiver(Event * event){
     freeMem(info->rxUsartEvent);
     enableIRQ();
     usartReceiveHandler(info->portName,(FREE_MALLOC_EVT << 8));
-
 }

@@ -18,7 +18,7 @@ typedef struct UsartEvent UsartEvent;
 struct UsartEvent {
     UsartEvent * next;
     EventType type;
-    GenericStateMachine *sm;
+    GenericStateMachine *stateMachineInfo;
     uint8_t * buffer;
 };
 
