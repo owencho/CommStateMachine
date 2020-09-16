@@ -12,7 +12,7 @@
 
 TimerEvent * timerEventItem;
 TimerEvent * currentTimerEventItem;
-extern int isEvent ;
+//extern int isEvent ;
 int totalTimeDelay,relativeTick;
 
 void timerEventISR(EventQueue * readyQueue,TimerEventQueue *timerEventQueue){
@@ -26,8 +26,8 @@ void timerEventISR(EventQueue * readyQueue,TimerEventQueue *timerEventQueue){
 	      		listAddItemToTail((List*)readyQueue,(ListItem*)(currentTimerEventItem->data));
 	      		//eventEnqueue(eventQueue,(Event*)currentTimerEventItem);
 				resetTick(timerEventQueue);
-				isEvent = 1;
-				__asm("sev");
+				//isEvent = 1;
+				//__asm("sev");
      			checkAndDequeueIfNextEventTimerIsZero(readyQueue,timerEventQueue);
      		}
     }

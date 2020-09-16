@@ -22,14 +22,12 @@ UsartDriverInfo usartDriverInfo[] = {
   [MAIN_CONTROLLER]={NULL},
 };
 
-
-
 #define hasRequestedTxPacket(info) ((info)->requestTxPacket)
 #define hasRequestedRxPacket(info) ((info)->requestRxPacket)
-#define getPacketPayloadAddress(packet) (packet + PACKET_HEADER_SIZE)
 #define isLastTxByte(info) ((info->txLen) < (info->txCounter)+1)
-#define isLastRxByte(info) ((info->rxLen) < (info->rxCounter)-PAYLOAD_OFFSET)
+#define isLastRxByte(info) ((info->rxLen) <= (info->rxCounter)-PAYLOAD_OFFSET)
 #define getCommandByte(info) (info->rxMallocBuffer[CMD_OFFSET])
+#define getSenderAddress(info) (info->rxMallocBuffer[SENDER_ADDRESS_OFFSET])
 
 STATIC int findPacketLength(uint8_t* data){
     int size = *(&data + 1) - data;
@@ -355,39 +353,52 @@ STATIC void findSMInfoAndGenerateEvent(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
+	GenericStateMachine * infoSM = info->rxUsartEvent->stateMachineInfo;
     #ifdef MASTER
-        info->rxUsartEvent->stateMachineInfo = (GenericStateMachine *)info;
+        infoSM = (GenericStateMachine *)MASTER_SMINFO;
     #else
-        getStateMachineInfoFromAVL(port);
+        infoSM = getStateMachineInfoFromAVL(port);
     #endif
 
-    if(!cmdNode){
-        generateAndSendNotAvailablePacket(UsartPort port);
+    if(!infoSM){
+        generateAndSendNotAvailablePacket(port);
         return;
     }
     rxUsartEvent->buffer = rxBuffer;
     eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
 }
 
-STATIC CmdNode * getStateMachineInfoFromAVL(UsartPort port){
+STATIC GenericStateMachine * getStateMachineInfoFromAVL(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
     int cmd = getCommandByte(info);
     CmdNode * cmdNode = (CmdNode * )avlFindNode((Node*)rootCmdNode,(void*)&cmd,
                                                 (Compare)cmdCompareForAVL);
-
+	if(!cmdNode){
+        return NULL;
+    }
+	return (GenericStateMachine *)cmdNode->info;
 }
+
 STATIC void generateAndSendNotAvailablePacket(UsartPort port){
+	UsartDriverInfo * info =&usartDriverInfo[port];
+	uint8_t senderAddress = getSenderAddress(info);
+	UsartEvent * rxUsartEvent = info->rxUsartEvent;
+	uint8_t * rxBuffer = info->rxMallocBuffer;
+	//rxUsartEvent->stateMachineInfo = &freeMemInfo;
+	//rxUsartEvent->stateMachineInfo.data = (void*)info;
+ 	generateFlagAndTransmit(port,senderAddress,UF_CMD_NOT_AVAILABLE,rxUsartEvent);
 
 }
-STATIC void resetUsartDriverReceive(UsartPort port){
-    UsartDriverInfo * info =&usartDriverInfo[port];
-    info->rxState = RX_IDLE;
-    info->rxCounter = 0;
-    info->rxLen = 0;
-}
 
+STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriverFlags flags,UsartEvent * event){
+	UsartDriverInfo * info =&usartDriverInfo[port];
+	uint8_t * rxBuffer = info->rxMallocBuffer;
+	uint8_t flagByte = 1<<flags;
+	uint8_t txData[2] = {flagByte , getCommandByte(info)};
+	usartDriverTransmit(port,rxAddress,2,txData,event);
+}
 STATIC void resetUsartDriverReceive(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     info->rxState = RX_IDLE;

@@ -2,6 +2,7 @@
 #define USARTDRIVER_H
 #include "Event.h"
 #include "UsartHardware.h"
+#include "CmdNode.h"
 #include "TimerEvent.h"
 #include "Usart.h"
 #include "SM_Common.h"
@@ -21,7 +22,7 @@
 #define FREE_MALLOC_EVT 0x30
 
 typedef enum{
-	UF_NOT_AVAILABLE,
+	UF_CMD_NOT_AVAILABLE,
 } UsartDriverFlags;
 
 typedef enum{
@@ -97,7 +98,8 @@ STATIC void requestForFreeMemoryEvent(UsartPort port);
 STATIC void generateAndSendNotAvailablePacket(UsartPort port);
 STATIC void generateEventForReceiveComplete(UsartPort port);
 STATIC void findSMInfoAndGenerateEvent(UsartPort port);
-STATIC CmdNode * getStateMachineInfoFromAVL(UsartPort port);
+STATIC GenericStateMachine * getStateMachineInfoFromAVL(UsartPort port);
+STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriverFlags flags,UsartEvent * event);
 //malloc function
 void allocMemForReceiver(Event * event);
 void freeMemForReceiver(Event * event);
