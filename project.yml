@@ -35,6 +35,7 @@
     - -:test/support
     - +:Core/Inc/**
     - -:STM32F429_hardware/src/IO/**
+    - -:AVLTree/test/**
   :source:
     - Core/Src/**
     - STM32F429_hardware/src/**

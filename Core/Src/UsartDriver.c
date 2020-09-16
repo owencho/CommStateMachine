@@ -7,6 +7,7 @@
 #include "Irq.h"
 #include "TimerEventQueue.h"
 #include "CommEventQueue.h"
+#include "CmdCompareForAVL.h"
 #include "Avl.h"
 #include "Crc.h"
 #include <stdlib.h>
@@ -340,8 +341,6 @@ STATIC void generateEventForReceiveComplete(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
-	int cmd = getCommandByte(info);
-	CmdNode * cmdNode = avlFindNode(rootCmdNode,(void*)&cmd,(Compare)cmdCompareForAVL);
 
     if(checkRxPacketCRC(port)){
         rxUsartEvent->type = PACKET_RX_EVENT;
@@ -349,18 +348,44 @@ STATIC void generateEventForReceiveComplete(UsartPort port){
     else{
         rxUsartEvent->type = RX_CRC_ERROR_EVENT;
     }
+    findSMInfoAndGenerateEvent(port);
+}
 
-	if(!cmdNode){
-		//free malloc event
-		requestForFreeMemoryEvent(port);
-		//request to send back
+STATIC void findSMInfoAndGenerateEvent(UsartPort port){
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    UsartEvent * rxUsartEvent = info->rxUsartEvent;
+    uint8_t * rxBuffer = info->rxMallocBuffer;
+    #ifdef MASTER
+        info->rxUsartEvent->stateMachineInfo = (GenericStateMachine *)info;
+    #else
+        getStateMachineInfoFromAVL(port);
+    #endif
 
-		return;
-	}
-	info->rxUsartEvent->stateMachineInfo = (GenericStateMachine *)info;
-	rxUsartEvent->buffer = rxBuffer;
-	eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
+    if(!cmdNode){
+        generateAndSendNotAvailablePacket(UsartPort port);
+        return;
+    }
+    rxUsartEvent->buffer = rxBuffer;
+    eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
+}
 
+STATIC CmdNode * getStateMachineInfoFromAVL(UsartPort port){
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    UsartEvent * rxUsartEvent = info->rxUsartEvent;
+    uint8_t * rxBuffer = info->rxMallocBuffer;
+    int cmd = getCommandByte(info);
+    CmdNode * cmdNode = (CmdNode * )avlFindNode((Node*)rootCmdNode,(void*)&cmd,
+                                                (Compare)cmdCompareForAVL);
+
+}
+STATIC void generateAndSendNotAvailablePacket(UsartPort port){
+
+}
+STATIC void resetUsartDriverReceive(UsartPort port){
+    UsartDriverInfo * info =&usartDriverInfo[port];
+    info->rxState = RX_IDLE;
+    info->rxCounter = 0;
+    info->rxLen = 0;
 }
 
 STATIC void resetUsartDriverReceive(UsartPort port){
@@ -378,10 +403,6 @@ STATIC void generateCRC16forTxPacket(UsartPort port){
     uint16_t crc16 ;
     crc16 = generateCrc16(txBuffer, length);
 	*(uint16_t*)&txCRC16[0] = crc16;
-}
-
-STATIC void generateAndSendNotAvailablePacket(UsartPort port){
-
 }
 
 STATIC void requestForFreeMemoryEvent(UsartPort port){

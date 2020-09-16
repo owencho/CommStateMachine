@@ -1,4 +1,5 @@
 #include "unity.h"
+#include "Exception.h"
 #include "UsartDriver.h"
 #include "mock_UsartHardware.h"
 #include "mock_Irq.h"
@@ -18,6 +19,12 @@
 #include "FakeIRQ.h"
 #include "CommStateMachine.h"
 #include "CommEventQueue.h"
+#include "CmdCompareForAVL.h"
+#include "Avl.h"
+#include "Node.h"
+#include "Balance.h"
+#include "Rotate.h"
+#include "AvlError.h"
 #include "Common.h"
 extern UsartDriverInfo usartDriverInfo[];
 UsartEvent txEvent;

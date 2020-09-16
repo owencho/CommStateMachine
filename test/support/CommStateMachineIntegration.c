@@ -33,7 +33,7 @@ int triggerSequence(){
         return 0;
     }
     else if(info->shouldCallFunc){
-        return blinkyButtonSequenceStateMachine(info->funcPtr , NULL);
+        return CommStateMachineIntegrationSeqeunce(info->funcPtr , NULL);
     }
     else{
         testReportFailure("Sequence stop prematurely at seq %d",nextSeqIndex);
