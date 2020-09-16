@@ -65,33 +65,35 @@ void * timerEventDequeue(TimerEventQueue * timerEventQueue){
 }
 
 void * timerEventDequeueSelectedEvent(TimerEventQueue * timerEventQueue,TimerEvent * deleteEvent){
-		TimerEvent * deletedTimerEvent;
-		int relativeTick;
-		disableIRQ();
-		if(timerEventQueue==NULL ||deleteEvent == NULL){
-				enableIRQ();
-				return NULL;
-		}
-		relativeTick = timerEventQueueGetRelativeTick(timerEventQueue);
-		deletedTimerEvent = (TimerEvent*)findListItem((List*)timerEventQueue,(void*)deleteEvent
-													,(LinkedListCompare)eventCompareSameTimeEvent);
+	TimerEvent * deletedTimerEvent;
+	int relativeTick;
+	disableIRQ();
+	if(timerEventQueue==NULL ||deleteEvent == NULL){
+		enableIRQ();
+		return NULL;
+	}
+	relativeTick = timerEventQueueGetRelativeTick(timerEventQueue);
+	deletedTimerEvent = (TimerEvent*)findListItem((List*)timerEventQueue,(void*)deleteEvent
+											,(LinkedListCompare)eventCompareSameTimeEvent);
 
-		if(deletedTimerEvent == NULL){
-				resetCurrentTimerEventQueue(timerEventQueue);
-				enableIRQ();
-				return NULL;
+	if(deletedTimerEvent == NULL){
+		resetCurrentTimerEventQueue(timerEventQueue);
+		enableIRQ();
+		return NULL;
+	}
+	else if(deletedTimerEvent == timerEventQueue->head){
+		if(deletedTimerEvent->next!=NULL){
+			deletedTimerEvent->next->time = deletedTimerEvent->next->time + deletedTimerEvent->time-relativeTick;
+			resetTick(timerEventQueue);
 		}
-		else if(deletedTimerEvent == timerEventQueue->head){
-				deletedTimerEvent->next->time = deletedTimerEvent->next->time + deletedTimerEvent->time-relativeTick;
-				resetTick(timerEventQueue);
-		}
-		else if(deletedTimerEvent != timerEventQueue->tail){
-				deletedTimerEvent->next->time = deletedTimerEvent->next->time + deletedTimerEvent->time;
-		}
-		deletedTimerEvent = deleteSelectedListItem((List*)timerEventQueue,(void*)deletedTimerEvent,
-													(LinkedListCompare)eventCompareSameTimeEvent);
-    enableIRQ();
-    return deletedTimerEvent;
+	}
+	else if(deletedTimerEvent != timerEventQueue->tail){
+			deletedTimerEvent->next->time = deletedTimerEvent->next->time + deletedTimerEvent->time;
+	}
+	deletedTimerEvent = deleteSelectedListItem((List*)timerEventQueue,(void*)deleteEvent,
+											(LinkedListCompare)eventCompareSameTimeEvent);
+	enableIRQ();
+	return deletedTimerEvent;
 }
 
 void timerEventRequest (TimerEventQueue * timerEventQueue,TimerEvent * event,int expiryPeriod){

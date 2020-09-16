@@ -19,6 +19,7 @@ struct UsartEvent {
     UsartEvent * next;
     EventType type;
     GenericStateMachine *stateMachineInfo;
+	void * data;
     uint8_t * buffer;
 };
 

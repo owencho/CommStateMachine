@@ -11,5 +11,5 @@
 #include <stdlib.h>
 #include "TimerEvent.h"
 int eventCompareForAddingTimeEvent (TimerEvent *currentEvent, TimerEvent * newEvent);
-int eventCompareSameTimeEvent(TimerEvent *currentEvent, TimerEvent * deleteEvent);
+int eventCompareSameTimeEvent(TimerEvent *currentEvent, Event * deleteEvent);
 #endif /* INC_EVENTCOMPARE_H_ */

@@ -23,16 +23,28 @@
 #include "Avl.h"
 #include "Node.h"
 #include "Balance.h"
+#include "CmdNode.h"
 #include "Rotate.h"
 #include "AvlError.h"
 #include "Common.h"
+extern CmdNode* rootCmdNode;
 extern UsartDriverInfo usartDriverInfo[];
 UsartEvent txEvent;
 UsartEvent rxEvent;
 UsartEvent * rxEvent2;
 char * rxPacket;
+CmdNode node;
+GenericStateMachine fakeSM;
 void setUp(void){}
 void tearDown(void){}
+
+void initCmdNode(CmdNode * node,  CmdNode * left ,CmdNode * right,int balanceFactor,int command,void*info){
+    node->left = left;
+    node->right = right;
+    node->bFactor = balanceFactor;
+	node->command = command;
+	node->info = info;
+}
 
 void test_UsartDriver_usartConfig(void){
     disableIRQ_StubWithCallback(fake_disableIRQ);
@@ -334,23 +346,30 @@ void test_handleCRC16WithMallocBuffer_rx_data_packet_start(){
 
 
 void test_handleCRC16WithMallocBuffer_CRC_packet_received(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
     //initialization
     usartDriverInit(LED_CONTROLLER);
     fakeInfo->rxState = RX_WAIT_CRC16_STATIC_BUFFER;
 	fakeInfo->rxMallocBuffer = (uint8_t*) malloc(13 * sizeof(uint8_t));
 	fakeInfo->rxUsartEvent = (UsartEvent*) malloc(sizeof(UsartEvent));
-	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+	//expected to return back non command packet
+	hardwareUsartTransmit_Expect(LED_CONTROLLER);
     //main
 
     handleCRC16WithMallocBuffer(LED_CONTROLLER,0x55);
     TEST_ASSERT_EQUAL(fakeInfo->rxCRC16[1],0x55);
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
 	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,RX_CRC_ERROR_EVENT);
-	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+	fakeCheckIRQ(__LINE__);
+	free(fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxUsartEvent);
 }
 
 void test_usartReceiveHandler_wait_for_malloc_with_malloc_evt(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
 	uint8_t * staticBuffer = fakeInfo->rxStaticBuffer;
     //initialization
@@ -360,16 +379,17 @@ void test_usartReceiveHandler_wait_for_malloc_with_malloc_evt(){
 	fakeInfo->rxUsartEvent = (UsartEvent*) malloc(sizeof(UsartEvent));
 	staticBuffer[0] ='a';
 	staticBuffer[1] ='b';
-	eventEnqueue_Expect(&evtQueue,(Event*)fakeInfo->rxUsartEvent);
+	//expected to return back non command packet
+	hardwareUsartTransmit_Expect(LED_CONTROLLER);
     //main
     usartReceiveHandler(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
 	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[0],'a');
 	TEST_ASSERT_EQUAL(fakeInfo->rxMallocBuffer[1],'b');
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
 	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,RX_CRC_ERROR_EVENT);
-	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
 	free(fakeInfo->rxMallocBuffer);
 	free(fakeInfo->rxUsartEvent);
+	fakeCheckIRQ(__LINE__);
 }
 
 void test_usartReceiveHandler_wait_for_malloc_without_malloc_evt(){
@@ -381,6 +401,8 @@ void test_usartReceiveHandler_wait_for_malloc_without_malloc_evt(){
     //main
     usartReceiveHandler(LED_CONTROLLER,(FREE_MALLOC_EVT << 8));
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_MALLOC_BUFFER);
+	free(fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxUsartEvent);
 }
 
 void test_usartReceiveHandler_wait_for_free_memory_with_free_malloc_evt(){
@@ -392,6 +414,8 @@ void test_usartReceiveHandler_wait_for_free_memory_with_free_malloc_evt(){
     //main
     usartReceiveHandler(LED_CONTROLLER,(FREE_MALLOC_EVT << 8));
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
+	free(fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxUsartEvent);
 }
 
 void test_usartReceiveHandler_wait_for_free_memory_without_free_malloc_evt(){
@@ -403,6 +427,8 @@ void test_usartReceiveHandler_wait_for_free_memory_without_free_malloc_evt(){
     //main
     usartReceiveHandler(LED_CONTROLLER,(MALLOC_REQUEST_EVT << 8));
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_WAIT_FOR_FREE_MALLOC_BUFFER);
+	free(fakeInfo->rxMallocBuffer);
+	free(fakeInfo->rxUsartEvent);
 }
 
 void test_checkRxPacketCRC_pass(){
@@ -436,10 +462,14 @@ void test_checkRxPacketCRC_fail(){
 }
 
 void test_generateEventForReceiveComplete_pass(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
     UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
 	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
 	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
 	uint16_t crc16;
+	initCmdNode(&node,NULL ,NULL,0,0xB,&fakeSM);
+	rootCmdNode = &node;
     //initialization
     usartDriverInit(LED_CONTROLLER);
 	fakeInfo->rxLen = 3;
@@ -452,6 +482,7 @@ void test_generateEventForReceiveComplete_pass(){
 	generateEventForReceiveComplete(LED_CONTROLLER);
 	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->type,PACKET_RX_EVENT);
 	TEST_ASSERT_EQUAL(fakeInfo->rxUsartEvent->buffer,fakeInfo->rxMallocBuffer);
+	fakeCheckIRQ(__LINE__);
 }
 
 void test_generateEventForReceiveComplete_fail(){
@@ -460,6 +491,8 @@ void test_generateEventForReceiveComplete_fail(){
 	uint8_t * rxCRC16 = fakeInfo->rxCRC16;
 	uint16_t crc16;
     //initialization
+	initCmdNode(&node,NULL ,NULL,0,0xB,&fakeSM);
+	rootCmdNode = &node;
     usartDriverInit(LED_CONTROLLER);
 	fakeInfo->rxLen = 2;
 	crc16 = generateCrc16(&fakeBuffer[PAYLOAD_OFFSET], 3);
@@ -482,4 +515,79 @@ void test_resetUsartDriverReceive(){
 	TEST_ASSERT_EQUAL(fakeInfo->rxState,RX_IDLE);
 	TEST_ASSERT_EQUAL(fakeInfo->rxCounter,0);
 	TEST_ASSERT_EQUAL(fakeInfo->rxLen,0);
+}
+
+void test_generateAndSendNotAvailablePacket(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+    //initialization
+	initCmdNode(&node,NULL ,NULL,0,0xB,&fakeSM);
+	rootCmdNode = &node;
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+	fakeInfo->rxUsartEvent = (UsartEvent*) malloc(sizeof(UsartEvent));
+	//expected to return back non command packet
+	hardwareUsartTransmit_Expect(LED_CONTROLLER);
+    //main
+	generateAndSendNotAvailablePacket(LED_CONTROLLER);
+	TEST_ASSERT_EQUAL(fakeInfo->txUsartEvent,fakeInfo->rxUsartEvent);
+	TEST_ASSERT_EQUAL(fakeInfo->receiverAddress,0x13);
+	TEST_ASSERT_EQUAL(fakeInfo->txLen,0x2);
+	TEST_ASSERT_EQUAL(fakeInfo->requestTxPacket,1);
+	fakeCheckIRQ(__LINE__);
+	free(fakeInfo->rxUsartEvent);
+}
+
+void test_getStateMachineInfoFromAVL(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+    //initialization
+	initCmdNode(&node,NULL ,NULL,0,0xB,&fakeSM);
+	rootCmdNode = &node;
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+    //main
+	TEST_ASSERT_EQUAL(&fakeSM,getStateMachineInfoFromAVL(LED_CONTROLLER));
+	fakeCheckIRQ(__LINE__);
+}
+
+void test_getStateMachineInfoFromAVL_not_available(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+    //initialization
+	initCmdNode(&node,NULL ,NULL,0,0xC,&fakeSM);
+	rootCmdNode = &node;
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+    //main
+	TEST_ASSERT_NULL(getStateMachineInfoFromAVL(LED_CONTROLLER));
+	fakeCheckIRQ(__LINE__);
+}
+
+void test_generateFlagAndTransmit(){
+	disableIRQ_StubWithCallback(fake_disableIRQ);
+	enableIRQ_StubWithCallback(fake_enableIRQ);
+	UsartDriverInfo * fakeInfo =&usartDriverInfo[LED_CONTROLLER];
+	uint8_t fakeBuffer[] = {0x12,0x13,0x3,0xA,0xB,0xC};
+    //initialization
+    usartDriverInit(LED_CONTROLLER);
+	fakeInfo->rxMallocBuffer = &fakeBuffer[0];
+	//expected to return back non command packet
+	hardwareUsartTransmit_Expect(LED_CONTROLLER);
+    //main
+	generateFlagAndTransmit(LED_CONTROLLER,0x13,UF_CMD_NOT_AVAILABLE,&rxEvent);
+	TEST_ASSERT_EQUAL(fakeInfo->txUsartEvent,&rxEvent);
+	TEST_ASSERT_EQUAL(fakeInfo->receiverAddress,0x13);
+	TEST_ASSERT_EQUAL(fakeInfo->txLen,0x2);
+	TEST_ASSERT_EQUAL(fakeInfo->requestTxPacket,1);
+	TEST_ASSERT_EQUAL(fakeInfo->txBuffer[0],1<<UF_CMD_NOT_AVAILABLE);
+	TEST_ASSERT_EQUAL(fakeInfo->txBuffer[1],0xB);
+	fakeCheckIRQ(__LINE__);
+	free(fakeInfo->rxUsartEvent);
 }

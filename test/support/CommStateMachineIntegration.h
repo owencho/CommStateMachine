@@ -35,5 +35,4 @@ void fake_usartIrqHandler(UsartPort port, int callNumber);
 void fake_usartSend(UsartRegs * usart,int data, int callNumber);
 int fake_usartReceive(UsartRegs * usart,int callNumber);
 void fake_setTimerTick(int value);
-//void fake_doNothing(ExtiRegs *extiLoc , int pin,RequestMasked mode, int callNumber);
 #endif // COMMSTATEMACHINEINTEGRATION_H

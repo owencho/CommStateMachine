@@ -56,6 +56,7 @@ struct UsartDriverInfo {
     int txCounter;
     int txLen;
     int txFlag;
+    uint8_t  receiverAddress;
     uint8_t * txBuffer;
     uint8_t txCRC16 [2];
     //receive
@@ -65,7 +66,6 @@ struct UsartDriverInfo {
     int requestRxPacket;
     int rxCounter;
     int rxLen;
-    uint8_t  receiverAddress;
     uint8_t * rxMallocBuffer;
     uint8_t rxStaticBuffer[STATIC_BUFFER_SIZE];
     uint8_t rxCRC16 [2];
@@ -93,15 +93,15 @@ STATIC void handleCRC16WithStaticBuffer(UsartPort port,uint16_t rxByte);
 STATIC void handleCRC16WithMallocBuffer(UsartPort port,uint16_t rxByte);
 STATIC int checkRxPacketCRC(UsartPort port);
 STATIC void resetUsartDriverReceive(UsartPort port);
-//not tested
-STATIC void requestForFreeMemoryEvent(UsartPort port);
-STATIC void generateAndSendNotAvailablePacket(UsartPort port);
 STATIC void generateEventForReceiveComplete(UsartPort port);
-STATIC void findSMInfoAndGenerateEvent(UsartPort port);
+STATIC void generateAndSendNotAvailablePacket(UsartPort port);
 STATIC GenericStateMachine * getStateMachineInfoFromAVL(UsartPort port);
 STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriverFlags flags,UsartEvent * event);
+STATIC void requestForFreeMemoryEvent(UsartPort port);
+STATIC void findSMInfoAndGenerateEvent(UsartPort port);
 //malloc function
 void allocMemForReceiver(Event * event);
 void freeMemForReceiver(Event * event);
 //removeUSartEvent
+void removeTimerEventFromQueue(Event * event);
 #endif // USARTDRIVER_H

@@ -353,7 +353,7 @@ STATIC void findSMInfoAndGenerateEvent(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     UsartEvent * rxUsartEvent = info->rxUsartEvent;
     uint8_t * rxBuffer = info->rxMallocBuffer;
-	GenericStateMachine * infoSM = info->rxUsartEvent->stateMachineInfo;
+	GenericStateMachine * infoSM;
     #ifdef MASTER
         infoSM = (GenericStateMachine *)MASTER_SMINFO;
     #else
@@ -364,6 +364,7 @@ STATIC void findSMInfoAndGenerateEvent(UsartPort port){
         generateAndSendNotAvailablePacket(port);
         return;
     }
+	rxUsartEvent->stateMachineInfo= infoSM;
     rxUsartEvent->buffer = rxBuffer;
     eventEnqueue(&evtQueue,(Event*)rxUsartEvent);
 }
@@ -386,8 +387,8 @@ STATIC void generateAndSendNotAvailablePacket(UsartPort port){
 	uint8_t senderAddress = getSenderAddress(info);
 	UsartEvent * rxUsartEvent = info->rxUsartEvent;
 	uint8_t * rxBuffer = info->rxMallocBuffer;
-	//rxUsartEvent->stateMachineInfo = &freeMemInfo;
-	//rxUsartEvent->stateMachineInfo.data = (void*)info;
+	rxUsartEvent->stateMachineInfo = &freeMemInfo;
+	rxUsartEvent->data = (void*)info;
  	generateFlagAndTransmit(port,senderAddress,UF_CMD_NOT_AVAILABLE,rxUsartEvent);
 
 }
@@ -399,6 +400,7 @@ STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriver
 	uint8_t txData[2] = {flagByte , getCommandByte(info)};
 	usartDriverTransmit(port,rxAddress,2,txData,event);
 }
+
 STATIC void resetUsartDriverReceive(UsartPort port){
     UsartDriverInfo * info =&usartDriverInfo[port];
     info->rxState = RX_IDLE;
@@ -439,4 +441,12 @@ void freeMemForReceiver(Event * event){
     freeMem(info->rxUsartEvent);
     enableIRQ();
     usartReceiveHandler(info->portName,(FREE_MALLOC_EVT << 8));
+}
+
+void removeTimerEventFromQueue(Event * event){
+    disableIRQ();
+	if(!eventDequeue(&evtQueue,&event)){
+		timerEventDequeueSelectedEvent(&timerQueue,(TimerEvent*)event);
+	}
+    enableIRQ();
 }
