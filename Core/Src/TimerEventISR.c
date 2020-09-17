@@ -22,10 +22,7 @@ void timerEventISR(EventQueue * readyQueue,TimerEventQueue *timerEventQueue){
 		if(currentTimerEventItem->time == timerEventQueueGetRelativeTick(timerEventQueue)){
 	      	currentTimerEventItem = timerEventDequeue(timerEventQueue);
 	  		listAddItemToTail((List*)readyQueue,(ListItem*)(currentTimerEventItem->data));
-	  		//eventEnqueue(eventQueue,(Event*)currentTimerEventItem);
 			resetTick(timerEventQueue);
-			//isEvent = 1;
-			//__asm("sev");
 			checkAndDequeueIfNextEventTimerIsZero(readyQueue,timerEventQueue);
 		}
 	}
