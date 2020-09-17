@@ -396,8 +396,9 @@ STATIC void generateAndSendNotAvailablePacket(UsartPort port){
 STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriverFlags flags,UsartEvent * event){
 	UsartDriverInfo * info =&usartDriverInfo[port];
 	uint8_t * rxBuffer = info->rxMallocBuffer;
-	uint8_t flagByte = 1<<flags;
-	uint8_t txData[2] = {flagByte , getCommandByte(info)};
+	uint8_t txData[2] ;
+    txData[0]= 1<<flags;
+    txData[1]= getCommandByte(info);
 	usartDriverTransmit(port,rxAddress,2,txData,event);
 }
 
