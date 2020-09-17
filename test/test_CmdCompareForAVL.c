@@ -36,12 +36,12 @@ void initCmdNode(CmdNode * node,  CmdNode * left ,CmdNode * right,int balanceFac
 
 
 
-//This function is used to compare the int node inside the AVL tree
+//This function is used to compare the cmd node inside the AVL tree
 // to determine the node to be added on the left or right depends on the size
 // of the int command
-// IntCompare return 1 when when root > nodeAdd
-// IntCompare return -1 when when root < nodeAdd
-// IntCompare return 0 when when root == nodeAdd
+// cmdCompareForAVL return 1 when when root > nodeAdd
+// cmdCompareForAVL return -1 when when root < nodeAdd
+// cmdCompareForAVL return 0 when when root == nodeAdd
 void test_cmdCompareForAVL_smaller_root_return_neg1(void){
     Compare compare = (Compare)cmdCompareForAVL;
     int i = 56;
