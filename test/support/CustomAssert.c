@@ -3,7 +3,7 @@
 #include "CustomAssert.h"
 #include <stdio.h>
 #include <stdint.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdarg.h>
 
 #define _STRINGIFY(x)     #x
