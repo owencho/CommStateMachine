@@ -42,6 +42,7 @@ struct UsartInfo {
     UsartHardwareRxState hwRxState;
     int txTurn;
     int lastByte;
+    //link usartDriverInfo
 };
 
 #define getUsartNumber() (sizeof(usartInfo)/sizeof(UsartInfo))

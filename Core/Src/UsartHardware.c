@@ -104,6 +104,7 @@ uint8_t usartTransmitHardwareHandler(UsartPort port){
             break;
         case HW_TX_SEND_BYTE :
             transmitByte = info->txCallBack(port);
+            //instead of passing port better info->usartDriverInfo
             if(transmitByte == 0x7E){
                 info->hwTxState = HW_TX_SEND_7E_BYTE;
             }
