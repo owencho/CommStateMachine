@@ -5,6 +5,7 @@
 #include "Exception.h"
 #include "CException.h"
 #include "CExceptionConfig.h"
+#include "TimerEventISR.h"
 #include "CommEventQueue.h"
 #include <stdlib.h>
 #include <stdarg.h>
