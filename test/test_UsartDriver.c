@@ -586,8 +586,6 @@ void test_generateFlagAndTransmit(){
 	TEST_ASSERT_EQUAL(fakeInfo->receiverAddress,0x13);
 	TEST_ASSERT_EQUAL(fakeInfo->txLen,0x2);
 	TEST_ASSERT_EQUAL(fakeInfo->requestTxPacket,1);
-	//TEST_ASSERT_EQUAL(fakeInfo->txBuffer[0],1<<UF_CMD_NOT_AVAILABLE);
-	TEST_ASSERT_EQUAL(fakeInfo->txBuffer[1],0xB);
 	fakeCheckIRQ(__LINE__);
 	free(fakeInfo->rxUsartEvent);
 }
