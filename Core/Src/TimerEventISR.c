@@ -10,8 +10,6 @@
 #include "Irq.h"
 #include "TimerEventISR.h"
 
-TimerEvent * timerEventItem;
-TimerEvent * currentTimerEventItem;
 //extern int isEvent ;
 int totalTimeDelay,relativeTick;
 
