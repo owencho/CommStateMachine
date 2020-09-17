@@ -16,7 +16,7 @@
 
 GenericStateMachine mallocInfo;
 GenericStateMachine freeMemInfo;
-
+uint8_t txDataForFlags[2];
 UsartDriverInfo usartDriverInfo[] = {
   [LED_CONTROLLER]={NULL},
   [MAIN_CONTROLLER]={NULL},
@@ -397,8 +397,9 @@ STATIC void generateFlagAndTransmit(UsartPort port,uint8_t rxAddress,UsartDriver
 	UsartDriverInfo * info =&usartDriverInfo[port];
 	uint8_t * rxBuffer = info->rxMallocBuffer;
 	uint8_t flagByte = 1<<flags;
-	uint8_t txData[2] = {flagByte , getCommandByte(info)};
-	usartDriverTransmit(port,rxAddress,2,txData,event);
+    txDataForFlags[0]=flagByte;
+    txDataForFlags[1]=getCommandByte(info);
+	usartDriverTransmit(port,rxAddress,2,txDataForFlags,event);
 }
 
 STATIC void resetUsartDriverReceive(UsartPort port){
